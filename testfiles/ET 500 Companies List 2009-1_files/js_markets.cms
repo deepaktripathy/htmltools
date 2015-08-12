@@ -1,0 +1,4324 @@
+
+
+// Array indexOf prototype
+if (!Array.prototype.indexOf) {
+	Array.prototype.indexOf = function (elt) {
+		var len = this.length >>> 0;
+		var from = Number(arguments[1]) || 0;
+		
+		from = (from < 0) ? Math.ceil(from) : Math.floor(from);
+		if (from < 0) {
+			from += len;
+		}
+
+		for (; from < len; from++) {
+			if (from in this && this[from] === elt) {
+				return from;
+			}
+		}
+		return -1;
+	};
+}
+
+(function ($) {
+	/* ET Tooltip */
+	$.fn.etTip = function (opts) {
+		var settings = {
+			top : 0,
+			left : 0
+		}
+
+		if (typeof opts == "object") {
+			if ($.isPlainObject(opts)) {
+				$.extend(settings, opts);
+			}
+		}
+
+		return this.each(function () {
+			var o = $(this),
+				tipText,
+				tipBox;
+			
+			o.mouseenter(function(){
+				
+				// Removing previous instances
+				$(".etTip").remove();
+				
+				// Appending Tooltip in the Document
+				$(document.body).append("<div id='etTip' class='etTip'><span class='arrow' /><span class='text' /></div>");
+				tipBox = $("#etTip");
+				tipText = o.attr("data-tooltip");
+				
+				// Showing Tooltip
+				tipBox
+					.find(".text").text(tipText)
+					.end()
+					.css({
+						top : o.offset().top + o.outerHeight() + 5 + settings.top,
+						left : o.offset().left + o.outerWidth()/2 - tipBox.outerWidth()/2  + settings.left
+					})
+					.show()
+					.stop()
+					.fadeTo(100, 0.8);
+			})
+			.mouseleave(function(){
+				
+				// Removing Tooltip
+				tipBox.remove();				
+			});
+		});
+	}
+	/* ET Tooltip */
+})(jQuery);
+
+var ajaxHit = {
+	url : "http://json.bselivefeeds.indiatimes.com/ET_Community/Gain",
+	isCurrentHour : true,
+	data : {
+		outputtype : 'json',
+		pagesize : 25
+		/*pid : 0,
+		service : "Gainers",
+		exchange : 50,
+		sort : "intraday",
+		pageno : 1,		
+		totalpages : 1*/
+	}
+}
+
+var etm = {
+	openPopup : function(target){
+		if(target){
+		
+			if(!$(target).hasClass("popup")){
+				$(target).addClass("popup");
+			}
+			
+			if(!$(".close", target).length){
+				$(target).append("<div class='close' />");
+			}
+			
+			$("#backgroundPopup").fadeTo(500, 0.7);
+			$(target).css({top:110}).fadeTo(500, 1, function(){
+				$(target).animate({
+					top : 100
+				}, 300);
+			});
+			
+			$(".close", target).die("click").live("click", function(){
+				$('#backgroundPopup,' + target).fadeOut(200);
+			});
+		}
+	},
+	setColor : function(num, bg){
+		var className = "";
+		if(bg == true){
+			if(num < 0){
+				className = " downBg";
+			} else if(num > 0){
+				className = " upBg";
+			}
+		} else {
+			if(num < 0){
+				className = " down";
+			} else if(num > 0){
+				className = " up";
+			}
+		}
+		return className;
+	},
+	sortClass : function(sortby){
+		if(ajaxHit.data.sortby == sortby){
+			if(ajaxHit.data.sortorder == "asc"){
+				return "sortAsc";
+			} else {
+				return "sortDesc";
+			}
+		} else {
+			return "sortNone";
+		}
+	},
+	instantAct : function(elm){
+		
+		etm.isAutoLoad = false;
+		
+		// Highlight Current Item, un-highlight other items
+		$("*", ".tabWidth").removeClass("currentService");
+		$("*", ".tabWidth").removeClass("active");
+		$(elm).addClass("currentService").parents("li").addClass("active");
+		
+		// Change Page Heading
+		if(ajaxHit.data.pid == 500 || ajaxHit.data.pid == 502){
+			$("span", "#pageContent h1").text($(elm).text().replace(/\d+/gi,""));
+		} else {
+			$("span", "#pageContent h1").text($(elm).text());
+		}
+		
+		// Change Loading Text
+		$(".loadingImg b").text($(elm).text());
+		
+		// Set Loader Position
+		var winScroll = $(window).scrollTop(),
+			loaderPos = $(".loadingBg").offset().top,
+			loaderHeight = $(".loadingBg").height(),
+			screenHeight = $(window).height(),
+			resultPos = "50%";
+			
+		if(winScroll < loaderPos){
+			resultPos = (screenHeight - (loaderPos - winScroll)) / 2;
+			
+			if(resultPos > (loaderHeight/2)){
+				resultPos = "50%";
+			}
+		} else {
+			resultPos = winScroll + (screenHeight / 2) - loaderPos;
+			
+			if(resultPos > (loaderHeight/2)){
+				resultPos = "50%";
+			}
+		}
+		
+		$(".loadingImg").css("top", resultPos);
+		
+		// Reset All Buttons : Exchange + Time
+		$(".stockExchange div button, .time div button").removeClass("active");
+		$(".stockExchange div").find("button:first").addClass("active");
+		$(".period, .period1, .period3, .period4, .period5, .period6, .period7", ".time").find("button:first").addClass("active");
+		$(".period2", ".time").find("button").eq(2).addClass("active");
+		
+		// Category Names
+		if(ajaxHit.data.pid <= 80){
+			if(ajaxHit.data.pid >= 50 && ajaxHit.data.pid < 60){
+				$("b", "#headlines h2").text("ET 500 Companies");
+			}else{
+				$("b", "#headlines h2").text("Equities");
+			}
+		} else if(ajaxHit.data.pid > 80 && ajaxHit.data.pid <= 120){
+			$("b", "#headlines h2").text("Commodities");
+		} else if(ajaxHit.data.pid > 120 && ajaxHit.data.pid <= 140){
+			$("b", "#headlines h2").text("Mutual Funds");
+		} else if(ajaxHit.data.pid > 140 && ajaxHit.data.pid <= 150){
+			$("b", "#headlines h2").text("ETF");
+		} else if(ajaxHit.data.pid >= 180 && ajaxHit.data.pid <= 200){
+			$("b", "#headlines h2").text("IPOs");
+		} else if(ajaxHit.data.pid >= 500){
+			$("b", "#headlines h2").text("My Zone");
+		}
+	},
+	getLiveAnnoucementCount : function(){
+		if(ajaxHit.data.pid == 20){ //&& $.jStorage.get("lastNewsId") != null
+			$.ajax({
+				url : "http://json.bselivefeeds.indiatimes.com/ET_Community/corporateannounce",
+				dataType : "jsonp",
+				data : {
+					newscount : true,
+					newsid : $.jStorage.get("lastNewsId"), //$("#dataDisplay .dataContainer .dataList").first().find("a").attr("href").split("newsid=")[1], // etm.liveNewsLastId
+					exchange : ajaxHit.data.exchange || 50
+				},
+				success : function(data){
+					if(data.newscount > 0){
+						if($("#dataDisplay .dataContainer .count").is(":empty")){
+							var html = "<a>Stop Live Refresh</a><p>" + data.newscount;
+							html += data.newscount == 1 ? " New Announcement</p><div class='clr' />" : " New Announcements</p><div class='clr' />";
+							$("#dataDisplay .dataContainer .count").hide().html(html).slideDown();
+						} else {
+							$("#dataDisplay .dataContainer .count p").text(data.newscount + " New " + (data.newscount == 1 ? "Announcement" : "Announcements"));
+						}
+					}
+				}
+			});
+		}
+	},
+	refresh : {}, // Auto Refresh Time out Object
+	isAutoLoad : false,
+	setAutoRefresh : function(){
+		etm.refresh.interval = setInterval(function(){
+			etm.isAutoLoad = true;
+			updateInfo();
+		}, etm.refresh.time);
+	},
+	ltpHistory : {},
+	addCommas : function(nStr) {
+		nStr += '';
+		x = nStr.split('.');
+		x1 = x[0];
+		x2 = x.length > 1 ? '.' + x[1] : '';
+		var rgx = /(\d+)(\d{3})/;
+		while (rgx.test(x1)) {
+			x1 = x1.replace(rgx, '$1' + ',' + '$2');
+		}
+		return x1 + x2;
+	},
+	myZone : {},
+	myNotificationComps : [],
+	getNotificationCount : function(){
+		if($.cookie("comp_name")){
+			etm.myNotificationComps = $.cookie("comp_name").split("#");
+			$.ajax({
+				url : "http://json.bselivefeeds.indiatimes.com/ET_Community/corporateannounce",
+				dataType : "jsonp",
+				data : {
+					companyid : etm.myNotificationComps.join(","),
+					newscount : true
+				},
+				success : function(data){
+					$("#myzone_notification b").text(data.newscount);
+				}
+			});
+		}
+		
+		if(_tp_data.isLogged){
+			$.ajax({
+				url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/userwatchlist.do",
+				dataType : "jsonp",
+				data : {
+					event : "getuserwatchlist",
+					pricerequired : false,
+					responseType : "json",
+					user : _tp_data.email
+				},
+				success : function(data){
+					$.each(data.etuserwatchlist.user_watchlists.etwatchlist, function(c, obj){
+						if(obj.stocklist){
+							if(obj.stocklist.security){
+								$.each(obj.stocklist.security, function(c1, obj1){
+									etm.myNotificationComps.push(obj1.companyId);
+								});
+							}
+						}
+					});
+					
+					var temp = [];
+					for(var i=0; i < etm.myNotificationComps.length; i++){
+						if(temp.indexOf(etm.myNotificationComps[i]) == -1){
+							temp.push(etm.myNotificationComps[i]);
+						}
+					}
+					etm.myNotificationComps = temp;
+					
+					//$("#myzone_notification b").text(etm.myNotificationComps.length);
+					$.ajax({
+						url : "http://json.bselivefeeds.indiatimes.com/ET_Community/corporateannounce",
+						dataType : "jsonp",
+						data : {
+							companyid : etm.myNotificationComps.join(","),
+							newscount : true
+						},
+						success : function(data){
+							$("#myzone_notification b").text(data.newscount);
+						}
+					});
+					
+					if(ajaxHit.data.pid == 502){
+						updateInfo();
+					}
+				}
+			});
+		}	
+	},
+	getWatchList : function(){
+		if(_tp_data.isLogged){
+			$.ajax({
+				url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+				dataType : "jsonp",
+				data : {
+					event : "fetchWLWS",
+					login : etm.userId,
+					instrumentId : 1,
+					responseType : "json"
+				},
+				success : function(data){
+					var wlCount = 0;
+					
+					if(data.message.watchlist){					
+						if($.isPlainObject(data.message.watchlist)){
+							wlCount = 1;
+						} else if($.isArray(data.message.watchlist)){
+							wlCount = data.message.watchlist.length;
+						}
+					}
+					
+					$("b", "#myzone_watchlist").text(wlCount);
+					
+					// Forming List
+					if(wlCount){
+						if(!$("span.arrow", "#myzone_watchlist").length){
+							$("#myzone_watchlist").prepend("<span class='arrow'></span>").parent().append("<ul />");
+						}
+						
+						if(wlCount == 1){
+							$("#myzone_watchlist").siblings("ul").append("<li class='level_2 rel'><a href='#' data-id='" + data.message.watchlist.id + "'>" + data.message.watchlist.name + "</a><div class='btns'><i class='spriteMkt edit' title='Edit'></i><i class='spriteMkt delete' title='Delete'></i></li>");
+							$("select option", "#addCompanyToWL").last().before("<option value='" + data.message.watchlist.id + "'>" + data.message.watchlist.name + "</option>");
+							
+							if(data.message.watchlist["default"] == "Yes"){
+								$("#myzone_watchlist").siblings("ul").find("li").last().find("a").attr("data-default", "true");
+							}
+						} else {
+							$.each(data.message.watchlist, function(c, obj){
+								$("#myzone_watchlist").siblings("ul").append("<li class='level_2 rel'><a href='#' data-id='" + obj.id + "'>" + obj.name + "</a><div class='btns'><i class='spriteMkt edit' title='Edit'></i><i class='spriteMkt delete' title='Delete'></i></li>");
+								$("select option", "#addCompanyToWL").last().before("<option value='" + obj.id + "'>" + obj.name + "</option>");
+								
+								if(obj["default"] == "Yes"){
+									$("#myzone_watchlist").siblings("ul").find("li").last().find("a").attr("data-default", "true");
+								}
+							});
+						}
+					}
+				}
+			});
+		}
+	},
+	addWatchList : function(name){
+		$(".message", "#addNewWL").empty().removeClass("red green").slideUp();
+		
+		if(_tp_data.isLogged){
+			if(name.length == 0){
+				$(".message", "#addNewWL").text("Name of the new watchlist is mandatory!").addClass("red").slideDown();
+				$(":input[type='text']", "#addNewWL").focus();
+			} else {				
+				$.ajax({
+					url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+					dataType : "jsonp",
+					data : {
+						event : "addWatchList",
+						login : etm.userId,
+						wlName : name,
+						assetClass : "STOCK",
+						isDefault : ($("b", "#myzone_watchlist").text() > 0) ? "N" : "Y",
+						responseType : "json"
+					},
+					success : function(data){
+						if(data.message == "Watch List Already Exists"){
+							$(".message", "#addNewWL").text("Watch List with name \"" + name + "\" Already Exists!").addClass("red").slideDown();
+							$(":input[type='text']", "#addNewWL").focus();
+						} else if(data.message == "SUCCESS"){
+							$(".message", "#addNewWL").text("Watch List with name \"" + name + "\" added successfully!").addClass("green").slideDown().siblings("form").slideUp();
+							$(":input[type='text']", "#addNewWL").val("");
+							
+							$("#myzone_watchlist").siblings("ul").empty();
+							etm.getWatchList();
+							
+							etm.myZone.timeout = setTimeout(function(){
+								$(".close", "#addNewWL").trigger("click");
+								//document.location.reload();
+							}, 5000);
+						}
+					}
+				});
+			}
+		} else {
+			loadPopup(4);
+		}
+	},
+	editWatchList : function(oldName, newName){
+		$(".message", "#editWL").empty().removeClass("red green").slideUp();
+		
+		if(newName.length == 0){
+			$(".message", "#editWL").text("Please enter new name for your WatchList \"" + oldName + "\"!").addClass("red").slideDown();
+			$(":input[type='text']", "#editWL").focus();
+		} else if(oldName == newName){
+			$(".message", "#editWL").text("Please Enter another name!").addClass("red").slideDown();
+			$(":input[type='text']", "#editWL").focus();
+		} else {				
+			$.ajax({
+				url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+				dataType : "jsonp",
+				data : {
+					event : "editWatchListName",
+					login : etm.userId,
+					wlName : oldName,
+					newWlName : newName,
+					responseType : "json"
+				},
+				success : function(data){
+					if(data.message == "FAILURE"){
+						$(".message", "#editWL").text("Watch List \"" + oldName + "\" not modified, please try again!").addClass("red").slideDown();
+						$(":input[type='text']", "#editWL").focus();
+					} else if(data.message == "SUCCESS"){
+						$(".message", "#editWL").text("Watch List \"" + oldName + "\" updated as \"" + newName + "\"!").addClass("green").slideDown().siblings("form").slideUp();
+						
+						$("#myzone_watchlist").siblings("ul").find("li").each(function(c, obj){
+							if($(obj).text() == oldName){
+								$(obj).find("a").text(newName);
+							}
+						});
+						etm.myZone.timeout = setTimeout(function(){
+							$(".close", "#editWL").trigger("click");
+							//document.location.reload();
+						}, 5000);
+					}
+				}
+			});
+		}
+	},
+	deleteWatchList : function(name){
+		$.ajax({
+			url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+			dataType : "jsonp",
+			data : {
+				event : "delWatchList",
+				login : etm.userId,
+				wlName : name,
+				responseType : "json"
+			},
+			success : function(data){
+				if(data.message == "FAILURE"){
+					alert("Watch List \"" + name + "\" has not been deleted, please try again!");
+				} else if(data.message == "SUCCESS"){
+					$.ajax({
+						url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+						dataType : "jsonp",
+						data : {
+							event : "fetchWLWS",
+							login : etm.userId,
+							instrumentId : 1,
+							responseType : "json"
+						},
+						success : function(data){
+							var wlCount = 0;
+							
+							if(data.message.watchlist){					
+								if($.isPlainObject(data.message.watchlist)){
+									wlCount = 1;
+								} else if($.isArray(data.message.watchlist)){
+									wlCount = data.message.watchlist.length;
+								}
+							}
+							
+							$("b", "#myzone_watchlist").text(wlCount);
+						}
+					});
+					
+					alert("Watch List \"" + name + "\" deleted successfully!");
+					
+					$("#myzone_watchlist").siblings("ul").find("li").each(function(c, obj){
+						if($(obj).text() == name){
+							$(obj).slideUp(function(){
+								$(obj).remove();
+							});
+						}
+					});
+					//document.location.reload();
+				}
+			}
+		});
+	},
+	expandWatchList : function(id){
+		function doAction(obj){
+			if(obj.id == id){
+				if(obj.stocklist){
+					var compids = [];
+					
+					if($.isArray(obj.stocklist.security)){
+						$.each(obj.stocklist.security, function(c, obj){
+							compids.push(obj.companyId);
+						});
+					} else {
+						compids.push(obj.stocklist.security.companyId);
+					}
+					
+					etm.wlcomps = compids;
+					
+					ajaxHit.data.companies = compids.join(",");
+					ajaxHit.data.sortorder = "desc";
+					ajaxHit.data.sortby = "percentchange";
+					ajaxHit.data.pagesize = ajaxHit.data.companies.length;
+					updateInfo();
+				} else {
+					etm.setHeader();
+					$(".compSearch", ".topFilters .time").show().siblings().hide();
+					$(">div", ".stockExchange").hide();
+					$(".pg_num span").text("0 - 0 of 0");
+					$(".dataContainer").html('<p class="noData down">No company found in this watchlist.<br />Please try adding from the search above!</p>');
+				}
+			}
+		}
+		
+		$.ajax({
+			url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/userwatchlist.do",
+			dataType : "jsonp",
+			data : {
+				event : "getuserwatchlist",
+				user : etm.userId,
+				pricerequired : 'false',
+				responseType : "json"
+			},
+			success : function(data){
+				ajaxHit.data = {};
+				ajaxHit.data.pid = 501;
+				ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/multicompanyobject";
+				ajaxHit.data.varname = "searchresult";
+				
+				if(data.etuserwatchlist.user_watchlists.etwatchlist instanceof Array){
+					$.each(data.etuserwatchlist.user_watchlists.etwatchlist, function(c, obj){
+						 doAction(obj);
+					});
+				} else {
+					var obj = data.etuserwatchlist.user_watchlists.etwatchlist;
+					doAction(obj);
+				}
+			}
+		});
+	},
+	deleteCompanyFromWatchlist : function(elm){
+		$.ajax({
+			url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+			dataType : "jsonp",
+			data : {
+				event : "delWatchCompany",
+				responseType : "json",
+				login : etm.userId,
+				wlName : $("#myzone_watchlist ~ ul li.active a").text(),
+				companyIds : elm.attr("data-compid")
+			},
+			success : function(data){
+				if(data.message == "SUCCESS"){
+					//alert("Company Deleted Successfully from this watchlist!");
+					$(elm).parents(".dataList").slideUp(function(){
+						$(elm).parents(".dataList").remove();
+					});
+				}
+			}
+		});
+	},
+	addCompanyToWatchlist : function(){
+		if($("#selectedCompanyId").val() != ""){
+			var today = new Date();
+			today = today.getDate() + "/" + (today.getMonth() + 1) + "/" + today.getFullYear();
+			
+			$.ajax({
+				url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+				dataType : "jsonp",
+				data : {
+					event : "addCompanyToWatchList",
+					login : etm.userId,
+					responseType : "json",
+					companyId : $("#selectedCompanyId").val(),
+					wlName : $("#addWatchListBtn ~ ul li.active").text(),
+					entryDate : today
+				},
+				success : function(data){
+					if(data.message == "SUCCESS"){
+						$("#addWatchListBtn ~ ul li.active a").trigger("click");
+						//alert($("#addCompToWL :text").val() + ' added to your watchlist \"' + $("#addWatchListBtn ~ ul li.active").text() + '\"');
+					} else if(data.message == "STOCK EXIST"){
+						alert($("#addCompToWL :text").val() + ' already exists in the watchlist \"' + $("#addWatchListBtn ~ ul li.active").text() + '\"');
+					}
+					$("#addCompToWL :text").val("");
+				}
+			});
+		}
+	},
+	addToWachlist : function(){
+		if(_tp_data.isLogged){
+			$(".message", "#addCompanyToWL").removeClass("redGreen").empty().hide();
+			etm.openPopup("#addCompanyToWL");
+		} else {
+			loadPopup(4);
+		}
+	},
+	showInfoBox : function(elm){
+		var $box = $("#compHoverData"),
+			$anchor = elm.parent().siblings("p").find("a"),
+			posLeft = elm.offset().left + $anchor.width() + 30,
+			posTop = elm.offset().top - 16,
+			seo = elm.parent().attr("data-seo"),
+			compid = elm.parent().attr("data-compid"),
+			setWindow = function(){
+				if(($box.outerHeight() + $box.offset().top) > ($(window).scrollTop() + $(window).height())){
+					$('body,html').animate({
+						scrollTop: $box.outerHeight() + $box.offset().top + 20 - $(window).height()
+					}, 500);
+				}
+			};
+		
+		// Prevent Auto Refresh
+		clearInterval(etm.refresh.interval);
+			
+		// Setting Box Position
+		$box.css({
+			top : posTop,
+			left : posLeft
+		});
+		
+		$box
+			.find("h3").text($anchor.text())
+			.end().find("ul").empty()
+			.end().find(".btnFollowSpeed").attr("href", "http://speed.economictimes.indiatimes.com/" + seo + "/company/companyid-" + compid + ".cms")
+			.end().find(".btnAlert").attr("href", "/stock-price-alerts/pricealerts.cms?sid=" + compid)
+			.siblings(".btnAddWL, .btnAlert").attr("data-compid", compid)
+			.end().end().find(".moreon").find("span").html($anchor.clone())
+			.end().find("a").eq(1).attr("href", "/" + seo + "/frequency-daily/arc-0/prices/companyid-" + compid + ",exchangeid-" + (ajaxHit.data.exchange || 50) + ",numberofdmw-30,pagenumber-1,pagesize-25.cms")
+			.parent().find("a").eq(2).attr("href", "/" + seo + "/profitandlose/companyid-" + compid + ".cms")
+			.parent().find("a").eq(3).attr("href", "/" + seo + "/infocompanymanagement/companyid-" + compid + ".cms")
+			.parent().find("a").eq(4).attr("href", "/" + seo + "/directorsreport/companyid-" + compid + ".cms")
+			.parent().find("a").eq(5).attr("href", "/" + seo + "/stocknews/companyid-" + compid + ".cms")
+			.parent().find("a").eq(6).attr("href", "/" + seo + "/quotecompare/companyid-" + compid + ".cms");
+			
+		if(!elm.hasClass("hidden")){
+			
+			$box.find(".loading").show();
+			
+			$.ajax({
+				url : "http://json.bselivefeeds.indiatimes.com/ET_Community/corporateannounce",
+				dataType : "jsonp",
+				data : {
+					companyid : compid,
+					exchange : ajaxHit.data.exchange
+				},
+				success : function(data){
+					$box.find("ul").empty().siblings(".loading").fadeOut(function(){
+						$.each(data.searchresult, function(c, obj){
+							if(c < 5){
+								$box.find("ul").append("<li><p><b>" + obj.caption + "</b><br /><i>" + obj.datetime + "</i></p><div class='details'>" + obj.fullText + "</div></li>");
+							}
+						});
+						
+						$box.find("li p b").die("click").live("click", function(){
+							$(this).parent().next().slideToggle().parent().siblings().find(".details").slideUp();
+						});
+						
+						setWindow();
+					});
+				}
+			});
+		}
+		
+		setWindow();
+		
+		// Closing
+		$box.find(".close").unbind("click").bind("click", function(){
+			$box.removeAttr("style");
+			
+			// Reset Auto Refresh
+			if(etm.refresh.time != 0){
+				if(_mkt.isOpen){
+					etm.setAutoRefresh();
+				}
+			}
+		});
+	},
+	searchCompany : function(key, elm){
+		var keyword = $.trim(elm.val()),
+			selected = -1,
+			dropDiv = elm.parent().siblings(".ddSuggestions");
+		
+		switch (key){
+			case 13: // Enter
+				elm.val($("div.active", dropDiv).text());
+				dropDiv.empty().hide();
+				break;
+			case 38: // Up
+				selected = $(".active", dropDiv).index();
+				if(selected <= 0){
+					$("div", dropDiv).last().addClass("active").siblings().removeClass("active");
+					selected = $("div", dropDiv).length-1;
+				} else {
+					$("div", dropDiv).eq(selected).prev().addClass("active").siblings().removeClass("active");
+					selected--;
+				}
+				break;
+			case 40: // Down
+				selected = $(".active", dropDiv).index();
+				if(selected < 0 || selected >= $("div", dropDiv).length-1){
+					$("div", dropDiv).first().addClass("active").siblings().removeClass("active");
+					selected = 0;
+				} else {
+					$("div", dropDiv).eq(selected).next().addClass("active").siblings().removeClass("active");
+					selected++;
+				}
+				break;
+			default :
+				if(keyword.length){
+					$("#selectedCompanyId").val("");
+					$.ajax({
+						url : "http://etspeedapi.indiatimes.com/etspeeds/ethome.ep",
+						dataType : 'jsonp',
+						data : {
+							matchCompanyName : true,
+							query : keyword,
+							pagesize : 10
+						},
+						success : function(data){
+							dropDiv.empty();
+							
+							if(data.length){
+								$.each(data, function(c, obj){
+									if(c < 10){
+										dropDiv.append("<div data-id='" + obj.tagId + "'>" + obj.tagName + "</div>");
+									}
+								});
+							}
+							
+							if(dropDiv.is(":hidden")){
+								dropDiv.slideDown();
+							}
+							
+							$("div", dropDiv)
+								.unbind("click mouseenter")
+								.bind("click", function(){
+									elm.val($(this).text());
+									dropDiv.empty().hide();
+									$("#selectedCompanyId").val($(this).attr("data-id"));
+								})
+								.bind("mouseenter", function(){
+									$(this).addClass("active").siblings().removeClass("active");
+									selected = $(this).index();
+								});
+								
+							selected = -1;
+						}
+					});
+				} else {
+					dropDiv.empty().hide();
+				}
+				
+				break;
+		}
+	},
+	getMarketStatus : function(){
+		$.ajax({
+			url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/MarketStatusData.jsonp",
+			dataType : "jsonp",
+			type : "POST",
+			data : {
+				exchangeId : 47,
+				instrumentId : 3
+			},
+			success : function(data){
+				$(".mktStatus").removeClass("close open").attr("data-tooltip", "");
+				
+				if(data.marketStatus.MarketOpen){
+					$(".mktStatus").addClass("open").attr("data-tooltip", "Market is open").show();
+				} else {
+					$(".mktStatus").addClass("close").attr("data-tooltip", "Market is closed").show();
+				}
+			}
+		});
+	},
+	resetTwitter : function(){
+		$.ajax({
+			url : "http://tinyurl.economictimes.indiatimes.com/etspeeds/tiny.ep",
+			dataType : "jsonp",
+			data : {
+				outputtype : "json",
+				url : location.href
+			},
+			success : function(data){
+				try {
+					var twitter = $("<a />").attr({
+							'href' : 'http://twitter.com/share',
+							'class' : 'twitter-share-button twitter-tweet',
+							'data-url' : data.output,
+							'data-text' : document.title,
+							'data-count' : 'vertical'
+						});
+
+					$("#TwitterShareBtn").html(twitter);
+					$.getScript('http://platform.twitter.com/widgets.js');
+				} catch (e) {}
+			}
+		});
+	}
+}
+
+/* Feedback */
+var etFeedback = {
+	visible : true,
+	toggle : function(){
+		var target = $("#feedbackForm"),
+			hitPos = parseInt(target.css("right")) == 0 ? -423 : 0,
+			speed = parseInt(target.css("right")) == 0 ? 500 : 800;
+			
+		if(hitPos){
+			$(".close", target).hide();
+		}
+			
+		target.stop().animate({
+			right : hitPos
+		}, speed, "easeOutQuart", function(){
+			if(!hitPos){
+				var uid = _tp_data.email.indexOf("@indiatimes.com") != -1 ? "" : _tp_data.email;
+				
+				$(".loading iframe", target).remove();
+				if(_tp_data.isLogged){
+				
+					$(".loading", target).append("<iframe src='/etfeedback.cms?pagename=Markets Stats&name=" + _tp_data.fullName + "&email=" + uid + "' />");
+				} else {
+					$(".loading", target).append("<iframe src='/etfeedback.cms?pagename=Markets Stats' />");
+				}
+				$(".close", target).show();
+			} else {
+				$(".loading iframe", target).remove();
+			}
+		});
+	},
+	init : function(){
+		if(etFeedback.visible){
+			var target = $("#feedbackForm");
+			$(".btn", target).bind("click", function(){
+				etFeedback.toggle();
+			});
+		}
+	}
+}	
+/* endof : Feedback */
+	
+function updateInfo(defaultLoad, browserBtns) {
+	var _pid = ajaxHit.data.pid;
+	
+	//etm.getMarketStatus();
+	
+	//Loading
+	if(etm.isAutoLoad == false){
+		if(! $(".dataContainer", "#dataDisplay").is(":empty")){
+			$(".loadingBg").fadeTo(500, 0.3).siblings(".loadingImg").fadeIn();
+		}
+	}
+	
+	// Resetting Stuffs
+	$("#compHoverData").removeAttr("style");
+	$("#serviceInfo p").empty();
+	
+	if(!_pid){
+		ajaxHit.data.sort = ajaxHit.data.sort || "intraday";
+		ajaxHit.data.sortby = ajaxHit.data.sortby || "percentchange";
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "desc";
+	} else if(_pid >= 21 && _pid <= 27){
+		ajaxHit.data.companyid = ajaxHit.data.companyid || 0;		
+		ajaxHit.data.year = ajaxHit.data.year || 0;
+		ajaxHit.data.pagesize = ajaxHit.data.pagesize || 25;
+		ajaxHit.data.pageno = ajaxHit.data.pageno || 1;
+		ajaxHit.data.filtertype = ajaxHit.data.filtertype || "latest";
+		ajaxHit.data.sortby = ajaxHit.data.sortby || 1;
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "asc";
+		
+		if(_pid == 21){
+			ajaxHit.data.marketactiontype = ajaxHit.data.marketactiontype || "splits";
+		} else if(_pid == 22){
+			ajaxHit.data.marketactiontype = ajaxHit.data.marketactiontype || "bonus";
+		} else if(_pid == 23){
+			ajaxHit.data.marketactiontype = ajaxHit.data.marketactiontype || "rights";
+		}
+	} else if(_pid == 28 || _pid == 29){
+		ajaxHit.data.searchtype = ajaxHit.data.searchtype || 0;		
+		ajaxHit.data.pagesize = ajaxHit.data.pagesize || 25;
+		ajaxHit.data.pageno = ajaxHit.data.pageno || 1;
+	} else if(_pid == 30 || _pid == 31){
+		ajaxHit.data.companyid = ajaxHit.data.companyid || 0;
+		ajaxHit.data.year = ajaxHit.data.year || 2013;
+		ajaxHit.data.month = ajaxHit.data.month || 0;
+		ajaxHit.data.exchangeid = ajaxHit.data.exchangeid || 50;
+		ajaxHit.data.filtertype = ajaxHit.data.filtertype || 0;
+		ajaxHit.data.sortby = ajaxHit.data.sortby || 1;
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "asc";
+		ajaxHit.data.pagesize = ajaxHit.data.pagesize || 25;
+		ajaxHit.data.pageno = ajaxHit.data.pageno || 1;
+	} else if(_pid == 32 || _pid == 33){
+		ajaxHit.data.filtertype = ajaxHit.data.filtertype || "1m";
+	} else if(_pid == 35){
+		ajaxHit.data.exchange = "All";
+	} else if(_pid == 81 || _pid == 83){
+		ajaxHit.data.statstype = "gainers";
+	} else if(_pid == 82 || _pid == 84){
+		ajaxHit.data.statstype = "losers";
+	} else if(_pid >= 85 && _pid <= 100){
+	
+		ajaxHit.data.statstype = _pid <= 92 ? "gainers" : "losers";
+		
+		if(_pid == 85 || _pid == 93){
+			ajaxHit.data.category = "Precious Metals";
+		} else if(_pid == 86 || _pid == 94){
+			ajaxHit.data.category = "Base Metals";
+		} else if(_pid == 87 || _pid == 95){
+			ajaxHit.data.category = "oil-energy";
+		} else if(_pid == 88 || _pid == 96){
+			ajaxHit.data.category = "Spices";
+		} else if(_pid == 89 || _pid == 97){
+			ajaxHit.data.category = "Plantation";
+		} else if(_pid == 90 || _pid == 98){
+			ajaxHit.data.category = "grains-pulses";
+		} else if(_pid == 91 || _pid == 99){
+			ajaxHit.data.category = "oil-seeds";
+		} else if(_pid == 92 || _pid == 100){
+			ajaxHit.data.category = "Others";
+		}
+	} else if(_pid == 101){
+		ajaxHit.data.statstype = "volumesurger";
+	} else if(_pid == 102){
+		ajaxHit.data.statstype = "movers";
+		ajaxHit.data.sortby = ajaxHit.data.sortby || "volume";
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "desc";
+	} else if(_pid == 103){
+		ajaxHit.data.statstype = "52weekhigh";
+	} else if(_pid == 104){
+		ajaxHit.data.statstype = "52weeklow";
+	} else if(_pid == 105){
+		ajaxHit.data.statstype = "contracthigh";
+	} else if(_pid == 106){
+		ajaxHit.data.statstype = "contractlow";
+	} else if(_pid == 107){
+		ajaxHit.data.statstype = "fallintradayhigh";
+	} else if(_pid == 108){
+		ajaxHit.data.statstype = "recoveryintradaylow";
+	} else if(_pid == 110){
+		ajaxHit.data.type = "premium";
+	} else if(_pid == 111){
+		ajaxHit.data.type = "discount";
+	} else if(_pid == 113){
+		ajaxHit.data.statstype = "moversbyvalue";
+		ajaxHit.data.sortby = ajaxHit.data.sortby || "value";
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "desc";
+	} else if(_pid >= 121 && _pid <= 131){
+		ajaxHit.data.pagesize = ajaxHit.data.pagesize || 25;
+		ajaxHit.data.period = ajaxHit.data.period || "r1week";		
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "desc";
+		
+		if(_pid == 122){
+			ajaxHit.data.rating = 5;
+		} else if(_pid == 123){
+			ajaxHit.data.secondaryobj = "tax planning";
+		} else if(_pid == 124){
+			ajaxHit.data.sortby = ajaxHit.data.sortby || "sharperatio";
+		} else if(_pid == 125){
+			ajaxHit.data.sortby = ajaxHit.data.sortby || "percentchange";
+		} else if(_pid == 126){
+			ajaxHit.data.sortby = ajaxHit.data.sortby || "expenseratio";
+			ajaxHit.data.sortorder = ajaxHit.data.sortorder || "asc";
+		} else if(_pid == 127 || _pid == 131){
+			ajaxHit.data.sortby = ajaxHit.data.sortby || "r1week";
+			ajaxHit.data.fundtypeid = 1;
+		} else if(_pid == 128){
+			ajaxHit.data.sortby = ajaxHit.data.sortby || "recorddate";
+		} else if(_pid == 130){
+			ajaxHit.data.startrange = 1;
+			ajaxHit.data.endrange = 10;
+		}
+		
+		if(_pid == 131){
+			ajaxHit.data.sortby = ajaxHit.data.period;
+		}
+	} else if(_pid >= 141 && _pid <= 145){
+		ajaxHit.data.sortby = ajaxHit.data.sortby || "percentchange";
+		ajaxHit.data.sortorder = ajaxHit.data.sortorder || "desc";
+		
+		if(_pid == 141){
+			ajaxHit.data.category = "all";
+		} /*else if(_pid == 142){
+			ajaxHit.data.category = "gold";
+		} else if(_pid == 143){
+			ajaxHit.data.category = "banking";
+		} else if(_pid == 144){
+			ajaxHit.data.category = "index";
+		} else if(_pid == 145){
+			ajaxHit.data.category = "others";
+		}*/
+	} else if(_pid >= 146 && _pid <= 150){
+		ajaxHit.data.sortby = ajaxHit.data.sortby || "r1day";
+		
+		if(_pid == 146){
+			ajaxHit.data.objid = -1;
+		} /*else if(_pid == 147){
+			ajaxHit.data.objid = 28;
+		} else if(_pid == 148){
+			ajaxHit.data.objid = 12;
+		} else if(_pid == 149){
+			ajaxHit.data.objid = 8;
+		} else if(_pid == 150){
+			ajaxHit.data.objid = -2;
+		}*/
+	
+	} else if(_pid == 180){
+		ajaxHit.data.isopen = 0;
+	} else if(_pid == 181){
+		ajaxHit.data.isopen = 1;
+	} else if(_pid == 182){
+		ajaxHit.data.isopen = 2;
+		ajaxHit.data.noofmonths = ajaxHit.data.noofmonths || 6;
+	} else if(_pid >= 183 && _pid <= 187){
+		ajaxHit.data.exchange = ajaxHit.data.exchange || 50;
+		ajaxHit.data.sectorid = 0;
+		ajaxHit.data.pagesize = ajaxHit.data.pagesize || 25;
+		ajaxHit.data.pageno = ajaxHit.data.pageno || 1;
+		
+		if(_pid == 183){
+			ajaxHit.data.sortorder = "desc";
+			ajaxHit.data.sortby = 0;
+		} else if(_pid == 184){
+			ajaxHit.data.sortorder = "desc";
+			ajaxHit.data.sortby = 1;
+		} else if(_pid == 185){
+			ajaxHit.data.sortorder = "asc";
+			ajaxHit.data.sortby = 1;
+		} else if(_pid == 186){
+			ajaxHit.data.sortorder = "desc";
+			ajaxHit.data.sortby = 4;
+		} else if(_pid == 187){
+			ajaxHit.data.sortorder = "asc";
+			ajaxHit.data.sortby = 4;
+		}
+	} else if(_pid == 500){
+		if(!etm.myZone.lastViewed){
+			etm.setHeader();
+			$(".dataContainer").html('<p class="noData down">Visit the company page and your most recently viewed stocks will automatically be displayed here.</p>');
+			$(".loadingBg, .loadingImg").fadeOut(300);
+			return;
+		}
+		ajaxHit.data.varname = "searchresult";
+		ajaxHit.data.companies = etm.myZone.lastViewed.join(",");
+	} else if(_pid == 502){
+		ajaxHit.data.companyid = etm.myNotificationComps.join(",");
+	} else if(_pid == 503){
+		ajaxHit.data.searchid = etm.myNotificationComps.length ? etm.myNotificationComps.join(",") : 0;
+		ajaxHit.data.dataformat = "json";
+	}
+	
+	if(_pid != 35){
+		if(ajaxHit.data.exchange == "All"){
+			ajaxHit.data.exchange = 50;
+		}
+	}
+	
+	if(typeof ajaxHit.data.pagesize != "undefined"){
+		if((ajaxHit.data.pagesize < 25) || (ajaxHit.data.pagesize != 25 && ajaxHit.data.pagesize != 50 && ajaxHit.data.pagesize != 75 && ajaxHit.data.pagesize != 100)){
+			ajaxHit.data.pagesize = 25;
+			$(">a", "#dd_pagings").first().addClass("spriteMkt active").siblings("a").removeClass("spriteMkt active");
+		}
+	}
+	
+	// Setting Page Url
+	var ignoreList = ["", "totalpages", "outputtype", "pagesize", "companies", "varname", "isopen", "sectorid", "category", "objid", "statstype", "starttime", "endtime"],
+		params = "",
+		pageUrl = "";
+		
+	if(_pid == 502){
+		ignoreList.push("companyid");
+	} else if(_pid == 503){
+		ignoreList.push("searchid");
+		ignoreList.push("dataformat");
+	}
+		
+	$.each(ajaxHit.data, function(key, val){
+		if(ignoreList.indexOf(key) == -1){
+			params += key + "-" + val + ",";
+		}
+	});
+	
+	params = params.substring(0, params.length-1);	
+	pageUrl = (params.length > 1) ? "/marketstats/" + params + ".cms" : "/marketstats.cms";
+	
+	// Download Link
+	etm.downloadParams = ajaxHit.data;
+	delete etm.downloadParams.outputtype;
+	etm.downloadParams = $.param(ajaxHit.data);
+	
+	if(_pid == 501 && etm.wlcomps){
+		etm.downloadParams += "&wlcomps=" + etm.wlcomps.join(",") + "&wlname=" + $("#myzone_watchlist ~ ul li.active a").text();
+	}
+	
+	$("#dd_download a").eq(0).attr("href", "/mkt_exe.cms?download=true&filename=marketstats&extension=xls&" + etm.downloadParams);
+	$("#dd_download a").eq(1).attr("href", "/mkt_pdf.cms?download=true&filename=marketstats&extension=pdf&" + etm.downloadParams);
+	
+	// Expand
+	if(_pid == 36 || _pid == 37){
+		$(".pg_expand", ".actions").show().parent().show().parent().prev().width(220);
+		$(".pg_expand", ".actions").parent().attr("href", "/indices/" + (_pid == 36 ? "sensex_30" : "nifty_50") + "_companies.cms");
+	} else {
+		$(".pg_expand", ".actions").hide().parent().hide().parent().prev().width(260);
+	}
+	
+	if(history.pushState || defaultLoad){
+		
+		/*var cacheType = false;
+		
+		if((_pid >= 13 && _pid <= 16) || (_pid >= 21 && _pid <= 29) || _pid <= 32 || _pid <= 33 || (_pid >= 121 && _pid <= 131) || (_pid >= 180 && _pid <= 187)){
+			cacheType = true;
+		}*/
+		
+		// preventing previos ajax hits which are in process
+		if(ajaxHit.xhr){
+			ajaxHit.xhr.abort();
+		}
+		
+		if(_pid == 2 && ajaxHit.isCurrentHour){
+			delete ajaxHit.data.endtime;
+			delete ajaxHit.data.starttime;
+		}
+		
+		ajaxHit.xhr = $.ajax({
+			dataType : "jsonp",
+			url : ajaxHit.url,
+			data : ajaxHit.data,
+			cache : true,
+			success : function (data) {
+				
+				var dataset, pagings;
+				
+				// URL formation
+				if(history.pushState){
+					if(browserBtns){
+						history.replaceState({}, "", pageUrl);
+					} else {
+						history.pushState({}, "", pageUrl);
+					}
+				}
+				if(ajaxHit.data.pid >= 50 && ajaxHit.data.pid <= 54){
+					$(document).attr("title", "ET 500 Companies List " + $("span", "#pageContent h1").text() + " : The Economic Times");
+				}else {
+					$(document).attr("title", $("span", "#pageContent h1").text() + " : The Economic Times");
+				}
+				
+				// Hiding Loader
+				$(".loadingBg, .loadingImg").fadeOut(300);
+				$(".dataContainer, .headers ul", "#dataDisplay").empty();
+				
+				// Go to Top
+				if($(window).scrollTop() > $("#headlines").offset().top-5){
+					$("html, body").animate({
+						scrollTop : $("#headlines").offset().top-5
+					});
+				}
+				
+				// Setting Data List
+				if(_pid == 121 || _pid == 123){
+					dataset = data.topfunds;
+				} else if(_pid == 36 || _pid == 37){
+					dataset = data.searchresult.response;
+				} else if(_pid >= 141 && _pid <= 145){
+					dataset = data.searchresult.NewDataSet;
+				} else if(_pid >= 146 && _pid <= 150){
+					dataset = data.schemesbyetfcategory;
+				} else if(_pid == 503){
+					dataset = data;
+				} else {
+					dataset = data.searchresult;
+				}
+				
+				// Hourly Gainers/Losers
+				if(_pid == 2){
+					var hourDD = $("select", ".rightPart .time .hourly"),
+						firstHour = parseInt(data.pagesummary.firstPriceTime.split("-")[0]),
+						lastTradedTime = parseInt(data.pagesummary.lasttradeddate.split(":")[0]);
+						
+					ajaxHit.data.starttime = data.pagesummary.firstPriceTime;
+					ajaxHit.data.endtime = data.pagesummary.secondPriceTime;
+			
+					if(data.pagesummary.lasttradeddate.indexOf("PM |") > 0 && lastTradedTime < 12){
+						lastTradedTime = lastTradedTime + 12;
+					}
+					
+					hourDD.empty();
+					
+					if(lastTradedTime){
+						for(var i=9; i<lastTradedTime; i++){
+							hourDD.append('<option value="' + i + '" ' + (i == firstHour ? "selected" : "") + '>' + i + ':00 and ' + (i+1) +':00</option>');
+						}
+					}
+					hourDD.append('<option value="currenthour" ' + (ajaxHit.isCurrentHour ? "selected" : "") + '>Current Hour</option>');
+				}
+				
+				// Writing Table
+				etm.setHeader();
+				if(_pid == 20){					
+					$("#dataDisplay .dataContainer").append("<div class='count'/>");
+				}
+				
+				if(dataset){
+					if(dataset.length){
+						$.each(dataset, function (c, obj) {
+							if(_pid == 503){
+								if(obj.stry){
+									if(obj.stry instanceof Array){
+										$.each(obj.stry, function(j, set){
+											etm.setData(j, set);
+										});
+									} else {
+										etm.setData(c, obj.stry);
+									}
+								} else if(obj.searchrecommendation){
+									if(obj.searchrecommendation.stry){
+										etm.setData(c, obj.searchrecommendation.stry);
+									}
+								}
+							} else {
+								etm.setData(c, obj);
+							}
+						});
+						
+						// Data Time and Pagination
+						if(_pid == 35 || _pid == 503){
+							$("span", ".topFilters .pg_num").text("1 - " + $(".dataList", ".dataContainer").length + " of " + $(".dataList", ".dataContainer").length);
+						} else {
+							pagings = {
+								from : (data.pagesummary.pageno - 1 ) * data.pagesummary.pagesize + 1,
+								to : (data.pagesummary.pageno - 1) * data.pagesummary.pagesize + dataset.length,
+								total : data.pagesummary.totalRecords
+							}
+							$("span", ".topFilters .pg_num").text(pagings.from + "-" + pagings.to + " of " + pagings.total);
+						}
+					} else {
+						$("span", ".topFilters .pg_num").text("0-0 of 0");
+						$("#dataDisplay .dataContainer").html("<p class='noData down'>No record found for search criteria, please check our other stats!</p>");
+					}
+				} else {
+					$("span", ".topFilters .pg_num").text("0-0 of 0");
+					$("#dataDisplay .dataContainer").html("<p class='noData down'>No record found for search criteria, please check our other stats!</p>");
+				}
+				
+				// Date
+				if(data.pagesummary){
+					ajaxHit.data.pageno = data.pagesummary.pageno;
+					ajaxHit.data.pagesize = data.pagesummary.pagesize;
+					ajaxHit.data.totalpages = data.pagesummary.totalpages;
+					
+					if(data.pagesummary.tooltiptext){
+						$("#serviceInfo p").text(data.pagesummary.tooltiptext);
+						$("h1 b.info").show();
+					} else {
+						$("#serviceInfo p").text("");
+						$("h1 b.info").hide();
+					}
+					
+					if(data.pagesummary.lasttradeddate){
+						$(".updateTime").text("As on " + data.pagesummary.lasttradeddate);
+					} else if(data.pagesummary.currentdatetime){
+						$(".updateTime").text("As on " + data.pagesummary.currentdatetime);
+					} else {
+						$(".updateTime").text($(".updateTime").attr("data-time"));
+					}
+				} else {
+					ajaxHit.data.pageno = 1;
+					ajaxHit.data.totalpages = 1;
+					ajaxHit.data.pagesize = $.isArray(dataset) ? dataset.length : 0;
+					
+					$(".updateTime").text($(".updateTime").attr("data-time"));
+					$("#serviceInfo p").text("");
+					$("h1 b.info").hide();
+				}
+				
+				setTimeout(function(){
+					$(".ltp", "#dataDisplay .dataList").removeClass("downBg upBg");
+				}, 2000);
+				
+				// Toggle Exchange Options
+				if(_pid <= 16 || _pid == 20 || (_pid >= 183 && _pid <= 187) || typeof _pid == "undefined"){
+					$(">div", ".topFilters .stockExchange").eq(0).show().siblings().hide();
+				} else if(_pid == 30 || _pid == 31) {
+					$(">div", ".topFilters .stockExchange").eq(1).show().siblings().hide();
+				} else if(_pid >= 81 && _pid <= 113){
+					$(">div", ".topFilters .stockExchange").eq(2).show().siblings().hide();
+				} else{
+					$(">div", ".topFilters .stockExchange").hide();
+				}
+				
+				// Toggle Time Options				
+				if(_pid == 0 || _pid == 1 || typeof _pid == "undefined"){
+					$(".period", ".topFilters .time").show().siblings().hide();
+				} else if(_pid == 2){
+					$(".hourly", ".topFilters .time").show().siblings().hide();
+				} else if(_pid == 11){
+					$(".period7", ".topFilters .time").show().siblings().hide();
+				} else if(_pid == 12){
+					$(".period5", ".topFilters .time").show().siblings().hide();
+				} else if(ajaxHit.data.pid >= 13 && ajaxHit.data.pid <= 16){
+					$(".period6", ".topFilters .time").show().siblings().hide();
+				} else if(_pid >= 21 && _pid <= 27){
+					$(".period1", ".topFilters .time").show().siblings().hide();
+				} else if(_pid == 32 || _pid == 33){
+					$(".period4", ".topFilters .time").show().siblings().hide();
+				} else if(_pid >= 121 && _pid <= 131){
+					$(".period3", ".topFilters .time").show().siblings().hide();
+				} else if(_pid == 182){
+					$(".period2", ".topFilters .time").show().siblings().hide();
+				} else if(_pid == 501){
+					$(".compSearch", ".topFilters .time").show().siblings().hide();
+				} else {
+					$(">div", ".topFilters .time").hide();
+				}
+				
+				// Removing Highlights
+				setTimeout(function(){
+					$(".ltp").removeClass("downBg upBg");
+				}, 2000);
+				
+				// Resetting AutoRefresh
+				clearInterval(etm.refresh.interval);
+				if(etm.refresh.time != 0){
+					if(_mkt.isOpen){
+						etm.setAutoRefresh();
+					}
+				}
+				
+				// Live Annoucements
+				if(_pid == 20 && ajaxHit.data.pageno == 1){
+					$.jStorage.set("lastNewsId", data.searchresult[0].newsid);
+					$.jStorage.setTTL("lastNewsId", 86400000);
+					//etm.liveNewsLastId = data.searchresult[0].newsid;
+				}
+				
+				clearInterval(etm.liveInterval);
+				if(_pid == 20 && $.jStorage.get("mkt_live_announcement") != 0){
+					etm.liveInterval = setInterval(function(){
+						etm.getLiveAnnoucementCount();
+					}, 20000);
+				} else {
+					clearInterval(etm.liveInterval);
+				}
+				
+				// Reloading Ad Frame
+				//$("#adframe").attr("src", $("#adframe").attr("src"));
+				
+				// Hit All Analytics Codes
+				$("#trackerFrame").attr("src", "/markets_timestrends.cms");
+				_gaq.push(['_trackPageview', pageUrl]);
+				COMSCORE.beacon({ c1: "2", c2: "6036484"});
+				
+				// Resetting Twitter
+				etm.resetTwitter();
+			},
+			error : function(jqXHR, textStatus, errorThrown){
+				var errMgs = "Service temporarily unavailable, please try again after some time!";
+				
+				$(".loadingBg, .loadingImg").fadeOut(300);
+				$(".dataContainer, .headers ul", "#dataDisplay").empty();
+				$("span", ".topFilters .pg_num").text("0-0 of 0");
+				
+				if(textStatus == "abort"){
+					errMgs = " ";
+				}
+				etm.setHeader();
+				$("#dataDisplay .dataContainer").html("<p class='noData down'>" + errMgs + "</p>");
+			},
+			abort : function(){}
+		});
+	} else {
+		window.location.href = pageUrl;
+	}
+}
+
+$(document).ready(function(){
+
+	if(_tp_data.isLogged){
+		etm.userId = _tp_data.email;
+		
+		if(etm.userId.indexOf("@indiatimes.com") != -1){
+			etm.userId = etm.userId.split("@")[0];
+		}
+	}
+	
+	// Tooltip
+	$("[data-tooltip]").etTip();
+	
+	// Sidebar Head Tabs
+	$("li a", ".sideNavs .head").click(function(){
+		$(this).parent().addClass("active").siblings().removeClass("active");
+		$(".allTabs", ".sideNavs").animate({
+			"margin-left" : -1 * $(this).parent().index() * 215
+		});
+		event.preventDefault();
+	});
+	
+	// Sidebar Navs
+	$("li a", ".sideNavs .allTabs").click(function(event){
+		if($(this).parent().is("#myZoneTab")){
+			if(!_tp_data.isLogged){
+				loadPopup(4);
+				return;
+			}
+		}
+		
+		$(this).parent().addClass("active").siblings().removeClass("active");
+		
+		if($(this).siblings("ul").length){
+			if($(this).siblings("ul").is(":hidden")){
+				$(this).siblings("ul").slideDown(function(){
+					if($(this).parent().hasClass("level_0") || $(this).parent().hasClass("level_1")){
+						if($(document).scrollTop() > $(this).offset().top-40){
+							$("html, body").animate({
+								scrollTop : $(this).offset().top-100
+							});
+						}
+					}
+				}).parent().siblings().find(">ul").slideUp();
+			}else {
+				$(this).siblings("ul").slideUp().parent().removeClass("active");
+			}
+		} else {
+			$(this).parent().siblings().removeClass("active").find("ul").slideUp();
+		}
+		
+		event.preventDefault();
+	});
+	
+	if(_tp_data.isLogged){
+		var firstName = _tp_data.fname || $.cookie("MSCSAuthDetail").split("~FirstName=")[1].split("~")[0];
+		if(firstName == "null"){
+			firstName = $.cookie("MSCSAuthDetails").split("=")[1].split("@")[0];
+		}
+		if(firstName.length > 12){
+			firstName = firstName.substring(0, 10) + "...";
+		}
+		$("#myZoneTab").removeClass("notLogged").find(">a").text("Welcome, " + firstName);
+	}
+	
+	// ================== MY ZONE ================
+	
+	if(!_tp_data.isLogged){
+		$("ul", "#myZoneTab").prepend("<li><a href='#' onclick='loadPopup(4); return false;'><u>Log in</u> to personalize this space.</a></li>");
+	}
+	
+	// Get Watch List
+	etm.getWatchList();
+	
+	// Add Watch List
+	$("#addWatchListBtn").click(function(){
+		if(_tp_data.isLogged){
+			$("form", "#addNewWL").show().siblings(".message").empty().removeClass("red green").hide();
+			etm.openPopup("#addNewWL");
+			clearTimeout(etm.myZone.timeout);
+		} else {
+			loadPopup(4);
+		}
+	});
+	
+	$("#addNewWL").bind("submit", function(event){
+		var name = $.trim($(":input[type='text']", "#addNewWL").val());
+		
+		etm.addWatchList(name);
+		event.preventDefault();
+	});
+	
+	// Edit Watch List
+	$("#myZoneTab .edit").live("click", function(){
+		$("form", "#editWL").show().siblings(".message").empty().removeClass("red green").hide();
+		$(":input[type='text'], :input[type='hidden']", "#editWL").val($(this).parent().siblings("a").text());
+		etm.openPopup("#editWL");
+		clearTimeout(etm.myZone.timeout);
+	});
+	
+	$("#editWL").bind("submit", function(event){
+		var oldName = $(":input[type='hidden']", "#editWL").val(),
+			newName = $.trim($(":input[type='text']", "#editWL").val());
+		
+		etm.editWatchList(oldName, newName);
+		event.preventDefault();
+	});
+	
+	// Delete Watch List
+	$("#myZoneTab .delete").live("click", function(){
+		var name = $(this).parent().siblings("a").text(),
+			choice = confirm("Are you sure, you want to delete the watchlist \"" + name + "\"?");
+			
+			if(choice){
+				etm.deleteWatchList(name);
+			}
+	});
+	
+	$("#myzone_watchlist ~ ul li a").live("click", function(event){
+		event.preventDefault();
+		etm.expandWatchList($(this).attr("data-id"));
+		ajaxHit.data.pid = 501;
+		etm.instantAct(this);
+	});
+	
+	// Delete Company From WatchList
+	$(".deleteWl").live("click", function(){
+		var userAgree = confirm("Are you sure you want to delete " + $(this).parent().siblings().first().find("a").text() + " from this watchlist?");
+		
+		if(userAgree){
+			etm.deleteCompanyFromWatchlist($(this));
+		}
+	});
+	
+	// Add Company to WatchList
+	$("#addCompToWL").bind("submit", function(){
+		etm.addCompanyToWatchlist();
+	});
+	
+	// Add to WatchList : From the Popup
+	$(".btnAddWL", "#compHoverData").bind("click", function(event){
+		etm.addToWachlist();
+		$(":input[type=hidden]", "#addCompanyToWL form").val($(this).attr("data-compid"));
+		event.preventDefault();
+	});
+	
+	$("form", "#addCompanyToWL").bind("submit", function(event){
+		var wlName = $(this).find("select").val(),
+			wlNameText = $(this).find("select").find("option[value=" + wlName + "]").text(),
+			companyid = $(this).find(":input[type=hidden]").val(),
+			msg = $(this).siblings(".message"),
+			newWl = $(this).find(":input[type='text']");
+		
+		if(wlName == ""){
+			msg.text("Please select a watchlist!").addClass("red").slideDown();
+		} else if(wlName == "-1"){
+			if(newWl.val() == ""){
+				msg.text("Please enter new wathclist's name").addClass("red").slideDown();
+				newWl.focus();
+			} else {
+				msg.empty().removeClass("red green").slideUp();
+				
+				$.ajax({
+					url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+					dataType : "jsonp",
+					data : {
+						event : "addWatchList",
+						login : etm.userId,
+						wlName : newWl.val(),
+						assetClass : "STOCK",
+						isDefault : ($("b", "#myzone_watchlist").text() > 0) ? "N" : "Y",
+						responseType : "json"
+					},
+					success : function(data){
+						if(data.message == "Watch List Already Exists"){
+							msg.text("Watch List with name \"" + newWl.val() + "\" Already Exists!").addClass("red").slideDown();
+							newWl.focus();
+						} else if(data.message == "SUCCESS"){
+							msg.text("Watch List with name \"" + newWl.val() + "\" added successfully!").addClass("green").slideDown().siblings("form").slideUp();
+							//newWl.val("");
+							
+							$("#myzone_watchlist").siblings("ul").empty();
+							etm.getWatchList();
+							
+							$.ajax({
+								url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+								dataType : "jsonp",
+								data : {
+									event : "addCompanyToWatchList",
+									login : etm.userId,
+									responseType : "json",
+									companyId : companyid,
+									wlName : newWl.val(),
+									entryDate : today
+								},
+								success : function(data){
+									if(data.message == "SUCCESS"){
+										msg.text("Company added to your watchlist " + newWl.val()).addClass("green").slideDown();
+									} else if(data.message == "STOCK EXIST"){
+										msg.text("Company already exists in the watchlist " + newWl.val()).addClass("red").slideDown();
+									}
+									
+									etm.myZone.timeout = setTimeout(function(){
+										$(".close", "#addCompanyToWL").trigger("click");
+									}, 5000);
+								}
+							});
+						}
+					}
+				});
+			}
+		} else {
+			var today = new Date();
+				today = today.getDate() + "/" + (today.getMonth() + 1) + "/" + today.getFullYear();
+				
+			msg.empty().removeClass("red green").slideUp();
+			
+			$.ajax({
+				url : "http://mobilefeeds.etportfolio.economictimes.indiatimes.com/webservices/watchXml.do",
+				dataType : "jsonp",
+				data : {
+					event : "addCompanyToWatchList",
+					login : etm.userId,
+					responseType : "json",
+					companyId : companyid,
+					wlName : wlNameText,
+					entryDate : today
+				},
+				success : function(data){
+					if(data.message == "SUCCESS"){
+						msg.text("Company added to your watchlist " + wlNameText).addClass("green").slideDown();
+					} else if(data.message == "STOCK EXIST"){
+						msg.text("Company already exists in the watchlist " + wlNameText).addClass("red").slideDown();
+					}
+					
+					etm.myZone.timeout = setTimeout(function(){
+						$(".close", "#addCompanyToWL").trigger("click");
+					}, 5000);
+				}
+			});
+		}
+		event.preventDefault();
+	});
+	
+	$("select", "#addCompanyToWL").bind("change", function(){
+		if($(this).val() == "-1"){
+			$(this).next().show().find(":input").focus().end().parent().find(":submit").val("CREATE & ADD");
+		} else {
+			$(this).next().hide().parent().find(":submit").val("ADD");
+		}
+		$(this).parent().siblings(".message").slideUp(function(){
+			$(this).removeClass("red green").empty();
+		});
+	});
+	
+	
+	//Last Viewed
+	if($.cookie("comp_name") != undefined){
+		etm.myZone.lastViewed = $.cookie("comp_name") ? $.cookie("comp_name").split("#") : [];
+		$("b", "#myzone_lastviewed").text(etm.myZone.lastViewed.length);
+	}
+	
+	// My Notification
+	etm.getNotificationCount();
+	
+	// Company Search in Watchlist	
+	$(":text", ".compSearch").bind("keyup", function(event){
+		var KeyID = window.event ? event.keyCode : event.which;
+		etm.searchCompany(KeyID, $(this));
+	});
+	
+	$("form", ".compSearch").bind("submit", function(event){
+		event.preventDefault();
+	});
+	
+	// ==============endof : MY ZONE =============
+	
+	// Top Navigations
+	$("button", ".topFilters .stockExchange, .topFilters .time").click(function(){
+		$(this).addClass("active").siblings().removeClass("active");
+	});
+	
+	// NSE - BSE : Filters
+	$("button", ".topFilters .stockExchange").click(function(){
+		ajaxHit.data[$(this).attr("data-param")] = ($(this).text() == "NSE") ? 50 : 47;
+		ajaxHit.data.pageno = 1;
+		updateInfo();
+	});
+	
+	// Time Filters
+	$("button", ".topFilters .time").click(function(){
+		ajaxHit.data[$(this).attr("data-param")] = $(this).attr("data-value");		
+		ajaxHit.data.pageno = 1;
+		
+		// For Corporate Actions
+		if($(this).parent().hasClass("period1")){
+			if(ajaxHit.data.pid == 25){
+				ajaxHit.data.sortby = 6;
+			} else if(ajaxHit.data.pid == 26){
+				ajaxHit.data.sortby = 2;
+			} else if(ajaxHit.data.pid == 27){
+				ajaxHit.data.sortby = 3;
+			} else {
+				ajaxHit.data.sortby = 4;
+			}
+			ajaxHit.data.sortorder = $(this).text() != "U" ? "desc" : "asc";
+		} else if((ajaxHit.data.pid >= 121 && ajaxHit.data.pid <= 123) || ajaxHit.data.pid == 127){
+			ajaxHit.data.sortby = ajaxHit.data.period;
+		}
+		updateInfo();
+	});
+	
+	// Select Dropdown Change
+	$(".hourly select", ".topFilters").change(function(){
+		if($(this).val() == "currenthour"){
+			ajaxHit.isCurrentHour = true;
+			delete ajaxHit.data.starttime;
+			delete ajaxHit.data.endtime;
+		} else {
+			ajaxHit.isCurrentHour = false;
+			ajaxHit.data.starttime = $(this).val() + "-00";
+			ajaxHit.data.endtime = (parseInt($(this).val()) + 1) + "-00";
+		}
+		ajaxHit.data.pageno = 1;
+		updateInfo();
+	});
+	
+	// Opening Dropdown
+	$(".pg_num, .pg_save, .pg_refresh, .pg_download", ".topFilters").click(function(){
+		$(this).siblings(".dropDowns").stop().slideUp();
+		
+		if($(this).hasClass("pg_num")){
+			if(typeof ajaxHit.data.pid == "undefined" || ajaxHit.data.pid != 35){
+				$("#dd_pagings").stop().slideToggle();
+			}
+		} else if($(this).hasClass("pg_save")){
+			$("#dd_save").stop().slideToggle();
+		} else if($(this).hasClass("pg_refresh")){
+			$("#dd_refresh").stop().slideToggle();
+		} else if($(this).hasClass("pg_download")){
+			$("#dd_download").stop().slideToggle();
+		}
+	});
+	
+	// Closing Dropdown on outside click
+	$(document).click(function(event){
+		if(
+			!$(event.target).is(".pg_num") 		&& !$(event.target).isChildOf(".pg_num") &&
+			!$(event.target).is(".pg_save") 	&& !$(event.target).isChildOf(".pg_save") &&
+			!$(event.target).is(".pg_refresh") 	&& !$(event.target).isChildOf(".pg_refresh") &&
+			!$(event.target).is(".pg_download")	&& !$(event.target).isChildOf(".pg_download") &&
+			!$(event.target).is(".dropDowns") 	&& !$(event.target).isChildOf(".dropDowns")
+		){
+			$(".dropDowns").slideUp();
+		}
+	});
+	$(">a", ".topFilters .dropDowns").click(function(){
+		$(".dropDowns").slideUp();
+	});
+	
+	// Pagings :  Next - Previous - Data Rows
+	$(".topFilters .pg_next").click(function(){
+		if(ajaxHit.data.pageno < ajaxHit.data.totalpages){
+			ajaxHit.data.pageno = parseInt(ajaxHit.data.pageno) + 1;
+			updateInfo();
+		}
+	})
+	.siblings(".pg_prev").click(function(){
+		if(ajaxHit.data.pageno > 1){
+			ajaxHit.data.pageno = parseInt(ajaxHit.data.pageno) - 1;
+			updateInfo();
+		}
+	})
+	.siblings(".pg_first").click(function(){
+		if(ajaxHit.data.pageno > 1){
+			ajaxHit.data.pageno = 1;
+			updateInfo();
+		}
+	})
+	.siblings(".pg_last").click(function(){
+		if(ajaxHit.data.pageno < ajaxHit.data.totalpages){
+			ajaxHit.data.pageno = ajaxHit.data.totalpages;
+			updateInfo();
+		}
+	});
+	
+	$("> a", "#dd_pagings").click(function(event){
+		ajaxHit.data.pagesize = parseInt($(this).attr("data-setting"));
+		ajaxHit.data.pageno = 1;
+		updateInfo();
+		//$(this).siblings(".title").text("Currently showing " + ajaxHit.data.pagesize + " rows");
+		$(this).addClass("spriteMkt active").siblings().removeClass("spriteMkt active");
+		event.preventDefault();
+	});
+	
+	if(ajaxHit.data.pagesize == 25 || ajaxHit.data.pagesize == undefined){
+		$("> a", "#dd_pagings").eq(0).addClass("spriteMkt active");
+	} else if(ajaxHit.data.pagesize == 50) {
+		$("> a", "#dd_pagings").eq(1).addClass("spriteMkt active");
+	} else if(ajaxHit.data.pagesize == 75) {
+		$("> a", "#dd_pagings").eq(2).addClass("spriteMkt active");
+	} else if(ajaxHit.data.pagesize == 100) {
+		$("> a", "#dd_pagings").eq(3).addClass("spriteMkt active");
+	}
+	
+	// Refresh Rate Settings
+	$(".rightPart button, #dd_pagings a, #dd_refresh a, #dd_refresh b, #dataDisplay button").live("click", function(){
+		etm.isAutoLoad = false;
+	});
+	
+	etm.refresh.time = $.cookie("dataRefreshTime") == undefined ? 4e4 : $.cookie("dataRefreshTime") * 1000;
+	
+	if(etm.refresh.time != 0){
+		etm.setAutoRefresh();
+		//$(".title", "#dd_refresh").text("Currently refreshing at " + etm.refresh.time/6e4 + " minutes");
+		$(".pg_refresh").attr("data-tooltip", "Refresh");
+		
+		if(etm.refresh.time == 4e4){
+			$("> a", "#dd_refresh").eq(0).addClass("spriteMkt active");
+		} else if(etm.refresh.time == 6e4){
+			$("> a", "#dd_refresh").eq(1).addClass("spriteMkt active");
+		} else if(etm.refresh.time == 12e4){
+			$("> a", "#dd_refresh").eq(2).addClass("spriteMkt active");
+		} else if(etm.refresh.time == 18e4){
+			$("> a", "#dd_refresh").eq(3).addClass("spriteMkt active");
+		} else {
+			$("> a", "#dd_refresh").eq(4).addClass("spriteMkt active");
+		}
+	} else {
+		$(".title", "#dd_refresh").text("Currently refresh is off");
+		$(".pg_refresh").attr("data-tooltip", "Refresh Stopped");
+	}
+		
+	
+	$("> a", "#dd_refresh").click(function(event){
+		var mins = parseInt($(this).attr("data-setting"));
+		$.cookie("dataRefreshTime", mins.toString(), {expires : 7});
+		
+		mins = isNaN(mins) ? 4e4 : mins * 1000;
+		
+		$(this).addClass("spriteMkt active").siblings("a").removeClass("spriteMkt active");
+		
+		clearInterval(etm.refresh.interval);
+		
+		if(mins != 0){
+			etm.refresh.time = mins;
+			etm.setAutoRefresh();
+			updateInfo();
+			$(".title", "#dd_refresh").html("Set refresh rate to: <b>Refresh Now</b>");
+			$(".pg_refresh").attr("data-tooltip", "Refresh");
+		} else {
+			$(".title", "#dd_refresh").text("Currently refresh is off");
+			$(".pg_refresh").attr("data-tooltip", "Refresh Stopped");
+		}
+		
+		event.preventDefault();
+	});
+	
+	$(".topFilters #dd_refresh .title b").live("click", function(){
+		updateInfo();
+		$(".dropDowns").slideUp();
+	});
+	
+	$(window)
+		.blur(function(){
+			clearInterval(etm.refresh.interval);
+		})
+		.focus(function(){
+			clearInterval(etm.refresh.interval);
+			if(_mkt.isOpen){
+				if(etm.refresh.time != 0){
+					etm.setAutoRefresh();
+				}
+			}
+		});
+	
+	// Sorting Data Table
+	$("b, button.spriteMkt", "#dataDisplay .headers li[data-sortby]").live("click", function(){
+		var parentLi = $(this).parents("li").first();
+		
+		if(parentLi.attr("data-sortby") && parentLi.attr("data-sortby") != ""){		
+			parentLi.siblings().removeClass("sortAsc sortDesc").addClass("sortNone");
+			
+			if(parentLi.hasClass("sortDesc")){
+				parentLi.removeClass("sortDesc sortNone").addClass("sortAsc");
+				ajaxHit.data.sortorder = "asc";
+			} else {
+				parentLi.removeClass("sortAsc sortNone").addClass("sortDesc");
+				ajaxHit.data.sortorder = "desc";
+			}
+			
+			if(ajaxHit.data.pid == 2){
+				if(ajaxHit.isCurrentHour){
+					delete ajaxHit.data.starttime;
+					delete ajaxHit.data.endtime;
+				}
+			}
+			
+			ajaxHit.data.pageno = 1;
+			ajaxHit.data.sortby = parentLi.attr("data-sortby");
+			updateInfo();
+		}
+	});
+	
+	// Showing Company Announcements
+	$("#dataDisplay .dataList .flag b").live("click", function(){
+		etm.showInfoBox($(this));
+	});
+	
+	// Showing Service Info
+	$("#pageContent h1 b").live("mouseenter", function(){
+		var obj = $(this),
+			target = $("#serviceInfo");
+		if($.trim(target.text()).length){
+			target.css({
+				left : obj.offset().left - 20,
+				top : obj.offset().top + 35
+			}).hide().stop().fadeTo(800, 1);
+		}
+	}).live("mouseleave", function(){
+		$("#serviceInfo").removeAttr("style");
+	});
+	
+	// Live Announcements
+	$("#dataDisplay .dataContainer .count a").live("click", function(){
+		if($(this).text() == "Stop Live Refresh"){
+			$(this).text("Start Live Refresh");
+			clearInterval(etm.liveInterval);
+			$.jStorage.set("mkt_live_announcement", 0);
+			$.jStorage.setTTL("mkt_live_announcement", 86400000);
+		} else {
+			$(this).text("Stop Live Refresh");
+			etm.liveInterval = setInterval(function(){
+				etm.getLiveAnnoucementCount();
+			}, 20000);
+			$.jStorage.set("mkt_live_announcement", 1);
+			$.jStorage.setTTL("mkt_live_announcement", 86400000);
+		}
+	});
+	
+	$("#dataDisplay .dataContainer .count p").live("click", function(){
+		updateInfo();
+	});
+	
+	// Fixing Stuffs on Scroll
+	$(window).bind("scroll", function(){
+		var topfilters = $(".topFilters", "#pageContent"),
+			rightPart = $(".rightPart", "#pageContent"),
+			dataHeader = $(".headers", "#dataDisplay"),
+			sideNav = $(".sideNavs", "#pageContent"),
+			sideHead = sideNav.find(".head"),
+			rtTopPos = rightPart.offset().top,
+			sharerBar = $("#shareBar"),
+			sharerTopPos = $("#sharerHolder").offset().top - 10;
+		
+		// Data Table Header
+		if(topfilters.hasClass("fixed")){
+			if($(window).scrollTop() < rtTopPos){
+				topfilters.removeClass("fixed");
+				dataHeader.removeClass("fixed");
+				sideHead.removeClass("fixed");
+				sideNav.css("padding-top", 0);
+				rightPart.css("padding-top", 0);
+			}
+		} else {
+			if($(window).scrollTop() > rtTopPos){
+				topfilters.addClass("fixed");
+				dataHeader.addClass("fixed");
+				sideHead.addClass("fixed");
+				sideNav.css("padding-top", sideHead.outerHeight());
+				rightPart.css("padding-top", topfilters.outerHeight() + dataHeader.outerHeight());
+			}
+		}
+		
+		// Share Bar
+		if(sharerBar.hasClass("fixed")){
+			if($(window).scrollTop() < sharerTopPos){
+				sharerBar.removeClass("fixed");
+			}
+		} else {
+			if($(window).scrollTop() > sharerTopPos){
+				sharerBar.addClass("fixed");
+			}
+		}
+		
+		// Go to Top
+		if($(window).scrollTop() > $("#headlines").offset().top-5){
+			$("#goToTop").stop().fadeTo(500, 0.8);
+		} else {
+			$("#goToTop").stop().fadeOut("fast");
+		}
+	});
+	
+	$("#goToTop").bind("click", function(){
+		$("html, body").animate({
+			scrollTop : $("#headlines").offset().top-5
+		});
+	});
+	
+	// Init
+	var popped = ('state' in window.history),
+		initialURL = location.href;
+		
+	updateInfo(true);
+	
+	$(window).bind("popstate", function(event){
+		var initialPop = !popped && location.href == initialURL;
+		popped = true;
+		if (initialPop) {
+			return;
+		}
+		
+		if(event.state){
+			updateInfo(false, true);
+		}
+	});
+	
+	setTimeout(function(){
+		if(($(".mktStatus").hasClass("close") || $(".mktStatus").hasClass("open")) && ! $.cookie("firstVisitDone")){
+			$(".mktStatus").trigger("mouseenter");
+			$.cookie("firstVisitDone", "true", {expires: 5});
+			
+			setTimeout(function(){
+				$(".mktStatus").trigger("mouseleave");
+			}, 10000);
+		}
+	}, 10000);
+	
+	
+	$("#e_ls_Gainers").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/Gain";
+		ajaxHit.data = {
+			pid : 0,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "desc",
+			sort : "intraday"
+		}		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_Losers").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/Losers";
+		ajaxHit.data = {
+			pid : 1,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "asc",
+			sort : "intraday"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_HourlyGainers").click(function(){
+		ajaxHit.isCurrentHour = true;
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/HourlyGainerLooser";
+		ajaxHit.data = {
+			pid : 2,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "desc",
+			service : "gainers"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_HourlyLosers").click(function(){
+		ajaxHit.isCurrentHour = true;
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/HourlyGainerLooser";
+		ajaxHit.data = {
+			pid : 2,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "asc",
+			service : "losers"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_MostActiveVolume").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/BuyerSellerMover";
+		ajaxHit.data = {
+			pid : 3,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "volume",
+			sortorder : "desc",
+			service : "volumemovers"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_MostActiveValue").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/BuyerSellerMover";
+		ajaxHit.data = {
+			pid : 3,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "value",
+			sortorder : "desc",
+			service : "valuemovers"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_OnlyBuyers").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/BuyerSellerMover";
+		ajaxHit.data = {
+			pid : 4,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "bestbuyqty",
+			sortorder : "desc",
+			service : "buyers"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_OnlySellers").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/BuyerSellerMover";
+		ajaxHit.data = {
+			pid : 4,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "bestsellqty",
+			sortorder : "desc",
+			service : "sellers"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_New52WeekHigh").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/New52WeeksHigh";
+		ajaxHit.data = {
+			pid : 5,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "desc"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_New52WeekLow").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/New52WeeksLow";
+		ajaxHit.data = {
+			pid : 6,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "asc"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_Near52WeeksHigh").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/Near52WeeksHigh";
+		ajaxHit.data = {
+			pid : 7,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentgap",
+			sortorder : "asc"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_Near52WeeksLow").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/Near52WeeksLow";
+		ajaxHit.data = {
+			pid : 8,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentgap",
+			sortorder : "asc"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_FallFromIntradayHigh").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/HighLow";
+		ajaxHit.data = {
+			pid : 9,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentbelowdayhigh",
+			sortorder : "asc",
+			service : "intradayhigh"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ls_RecoveryFromIntradayLow").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/HighLow";
+		ajaxHit.data = {
+			pid : 10,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentabovedaylow",
+			sortorder : "desc",
+			service : "intradaylow"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_la_VolumeShockers").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/Shocker";
+		ajaxHit.data = {
+			pid : 11,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "volumepercentagechange",
+			sortorder : "desc",
+			service : "volumeshocker",
+			avgvolumeover : "DAY_3"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_la_PriceShockers").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/Shocker";
+		ajaxHit.data = {
+			pid : 12,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "desc",
+			service : "priceshocker",
+			compareprice : "DAY_3"
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#el_la_PriceVol_1").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/GetPriceVolumeTracker";
+		ajaxHit.data = {
+			pid : 13,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "pricepercentchange",
+			sortorder : "desc",
+			service : "priceshocker",
+			pricevolumetrend : 1,
+			exchange : ajaxHit.data.exchange || 50
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});	
+	$("#el_la_PriceVol_2").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/GetPriceVolumeTracker";
+		ajaxHit.data = {
+			pid : 14,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "pricepercentchange",
+			sortorder : "desc",
+			service : "priceshocker",
+			pricevolumetrend : 2,
+			exchange : ajaxHit.data.exchange || 50
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});	
+	$("#el_la_PriceVol_3").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/GetPriceVolumeTracker";
+		ajaxHit.data = {
+			pid : 15,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "pricepercentchange",
+			sortorder : "desc",
+			service : "priceshocker",
+			pricevolumetrend : 3,
+			exchange : ajaxHit.data.exchange || 50
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});	
+	$("#el_la_PriceVol_4").click(function(){
+		etm.ltpHistory = {};
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/GetPriceVolumeTracker";
+		ajaxHit.data = {
+			pid : 16,
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "pricepercentchange",
+			sortorder : "desc",
+			service : "priceshocker",
+			pricevolumetrend : 4,
+			exchange : ajaxHit.data.exchange || 50
+		}
+		updateInfo();
+		etm.instantAct(this);
+	});	
+	$("#e_Live_Announcements").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/corporateannounce";
+		ajaxHit.data = {
+			pid : 20,
+			pageno : 1,
+			exchange : ajaxHit.data.exchange || 50,
+			pagesize : ajaxHit.data.pagesize || 25
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ET_500_Companies_2013").click(function(){
+		ajaxHit.url = "http://mfapps.economictimes.indiatimes.com/etcal/currencycontroller";
+		ajaxHit.data = {
+			pid : 50,
+			pageno : 1,
+			year : 2013,
+			sortorder : "asc",
+			sortby : "CurrentYearRank",
+			pagesize : ajaxHit.data.pagesize || 25
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ET_500_Companies_2012").click(function(){
+		ajaxHit.url = "http://mfapps.economictimes.indiatimes.com/etcal/currencycontroller";
+		ajaxHit.data = {
+			pid : 51,
+			pageno : 1,
+			year : 2012,
+			sortorder : "asc",
+			sortby : "CurrentYearRank",
+			pagesize : ajaxHit.data.pagesize || 25
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ET_500_Companies_2011").click(function(){
+		ajaxHit.url = "http://mfapps.economictimes.indiatimes.com/etcal/currencycontroller";
+		ajaxHit.data = {
+			pid : 52,
+			pageno : 1,
+			year : 2011,
+			sortorder : "asc",
+			sortby : "CurrentYearRank",
+			pagesize : ajaxHit.data.pagesize || 25
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ET_500_Companies_2010").click(function(){
+		ajaxHit.url = "http://mfapps.economictimes.indiatimes.com/etcal/currencycontroller";
+		ajaxHit.data = {
+			pid : 53,
+			pageno : 1,
+			year : 2010,
+			sortorder : "asc",
+			sortby : "CurrentYearRank",
+			pagesize : ajaxHit.data.pagesize || 25
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ET_500_Companies_2009").click(function(){
+		ajaxHit.url = "http://mfapps.economictimes.indiatimes.com/etcal/currencycontroller";
+		ajaxHit.data = {
+			pid : 54,
+			pageno : 1,
+			year : 2009,
+			sortorder : "asc",
+			sortby : "CurrentYearRank",
+			pagesize : ajaxHit.data.pagesize || 25
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_Splits").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/MarketActionsForAll";
+		ajaxHit.data = {
+			pid : 21,
+			companyid : 0,
+			marketactiontype : "splits",
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 4,
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_Bonus").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/MarketActionsForAll";
+		ajaxHit.data = {
+			pid : 22,
+			companyid : 0,
+			marketactiontype : "bonus",
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 4,
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_Rights").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/MarketActionsForAll";
+		ajaxHit.data = {
+			pid : 23,
+			companyid : 0,
+			marketactiontype : "rights",
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 4,
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_Dividends").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/DividendDetailsForAll";
+		ajaxHit.data = {
+			pid : 24,
+			companyid : 0,
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 4,
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_BookClosure").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/BookCloserDetailsForAll";
+		ajaxHit.data = {
+			pid : 25,
+			companyid : 0,
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 6,
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_BoardMeetings").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/BoardMeetingsForAll";
+		ajaxHit.data = {
+			pid : 26,
+			companyid : 0,
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 2,
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#la_AGM_EGM").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/AGMEGMDetailsForAll";
+		ajaxHit.data = {
+			pid : 27,
+			companyid : 0,
+			year : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			filtertype : "latest",
+			sortby : 3,
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ci_deListed").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/DelistedCompanies";
+		ajaxHit.data = {
+			pid : 28,
+			searchtype : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : 3,
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ci_Suspended").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/SuspendedCompanies";
+		ajaxHit.data = {
+			pid : 29,
+			searchtype : 0,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : 3,
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_sh_BulkDeals").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/BulkDealsForAll";
+		ajaxHit.data = {
+			pid : 30,
+			companyid : 0,
+			year : 2013,
+			month : 0,
+			exchangeid : ajaxHit.data.exchangeid || 50,
+			filtertype : 0,
+			sortby : 2,
+			sortorder : "desc",
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_sh_BlockDeals").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/BlockDealsForAll";
+		ajaxHit.data = {
+			pid : 31,
+			companyid : 0,
+			year : 2013,
+			month : 0,
+			exchangeid : ajaxHit.data.exchangeid || 50,
+			filtertype : 0,
+			sortby : 2,
+			sortorder : "desc",
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ia_FII").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/FIInvestments";
+		ajaxHit.data = {
+			pid : 32,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_ia_MF").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/MutualFundInvestments";
+		ajaxHit.data = {
+			pid : 33,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_di_MarketIndices").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/indexsummary";
+		ajaxHit.data = {
+			pid : 35
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_di_Sensex").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/liveindices";
+		ajaxHit.data = {
+			pid : 36,
+			indexid : 2365,
+			exchange : 47,
+			pagesize : 25,
+			sortorder: "desc",
+			sortby : "percentagechange",
+			company : true
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#e_di_Nifty").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/liveindices";
+		ajaxHit.data = {
+			pid : 37,
+			indexid : 2369,
+			exchange : 50,
+			pagesize : 25,
+			sortorder: "desc",
+			sortby : "percentagechange",
+			company : true
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_FtGainers").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 81,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_FtLosers").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 82,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_SpGainers").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/mcxspotcontroller";
+		ajaxHit.data = {
+			pid : 83,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_SpLosers").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/mcxspotcontroller";
+		ajaxHit.data = {
+			pid : 84,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_PM").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 85,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_BM").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 86,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_OE").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 87,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_Spices").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 88,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_Plantation").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 89,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_GP").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 90,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_OOS").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 91,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Gain_Others").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 92,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_PM").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 93,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_BM").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 94,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_OE").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 95,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "percentchange",
+			sortorder : "asc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_Spices").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 96,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_Plantation").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 97,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_GP").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 98,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_OOS").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 99,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Lose_Others").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 100,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_SurgingVolume").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 101,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "volumesurger",
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Movers").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 102,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_52High").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/contracthighlow";
+		ajaxHit.data = {
+			pid : 103,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "desc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_52Low").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/contracthighlow";
+		ajaxHit.data = {
+			pid : 104,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_ContractHigh").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/contracthighlow";
+		ajaxHit.data = {
+			pid : 105,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "desc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_ContractLow").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/contracthighlow";
+		ajaxHit.data = {
+			pid : 106,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_FFIH").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/intradayhighlow";
+		ajaxHit.data = {
+			pid : 107,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_RFIL").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/intradayhighlow";
+		ajaxHit.data = {
+			pid : 108,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "desc",
+			sortby : "percentchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_la_CalendarSpread").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/calenderspread";
+		ajaxHit.data = {
+			pid : 109,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortby : "spreadpercentchange",
+			sortorder: "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_la_Premium").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/PremiumDiscount";
+		ajaxHit.data = {
+			pid : 110,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "desc",
+			sortby : "premiumdiscountchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_la_Discount").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/PremiumDiscount";
+		ajaxHit.data = {
+			pid : 111,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "asc",
+			sortby : "premiumdiscountchange"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_la_BidAsk").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/bidaskspread";
+		ajaxHit.data = {
+			pid : 112,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "desc",
+			sortby : "spread"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#cmd_Movers_Value").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/ET_MCX/MCXLiveController";
+		ajaxHit.data = {
+			pid : 113,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			sortorder : "desc"
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_TopPerformers").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/topfund.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1week",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 121
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_TopStarRatings").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/topfundstats.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1week",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 122
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_TaxSavingSchemes").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/topfund.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1week",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 123
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_HRAR").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/returnlatestfund.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "sharperatio",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 124
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_AssetMonitor").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/assetmonitor.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "percentchange",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 125
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_LER").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/lowestexpenseratio.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "expenseratio",
+			sortorder : "asc",
+			pageno : 1,
+			pid : 126
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_CAR").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/categoryavgreturn.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1week",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 127
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_RecentDividends").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/lastonemonthdividend.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "recorddate",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 128
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_HRR").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/timeframeperformance.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1,
+			pid : 130
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#mf_3BFTB").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/bestfund.htm";
+		ajaxHit.data = {
+			period : "r1week",
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1week",
+			sortorder : "desc",
+			pageno : 1,
+			pid : 131
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_lp_all").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/MFJsonController";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pid : 141
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	/*$("#etf_lp_gold").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/MFJsonController";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pid : 142
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_lp_banking").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/MFJsonController";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pid : 143
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_lp_TOLD").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/MFJsonController";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pid : 144
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_lp_Others").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/MFJsonController";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pid : 145
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});*/
+	$("#etf_p_all").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/schemesbyetfcategory.htm";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1day",
+			pid : 146
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	/*$("#etf_p_gold").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/schemesbyetfcategory.htm";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1day",
+			pid : 147
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_p_banking").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/schemesbyetfcategory.htm";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1day",
+			pid : 148
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_p_TOLD").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/schemesbyetfcategory.htm";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1day",
+			pid : 149
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#etf_p_others").click(function(){
+		ajaxHit.url = "http://mcxlivefeeds.indiatimes.com/mf/schemesbyetfcategory.htm";
+		ajaxHit.data = {
+			pageno : 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			sortby : "r1day",
+			pid : 150
+		};
+		updateInfo();
+		etm.instantAct(this);
+	});*/
+	$("#ipo_Open").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/OpenUpcomingIPO";
+		ajaxHit.data = {
+			pid : 180,
+			isopen : 0,
+			noofmonths : ajaxHit.data.noofmonths || 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_Upcoming").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/OpenUpcomingIPO";
+		ajaxHit.data = {
+			pid : 181,
+			isopen : 1,
+			noofmonths : ajaxHit.data.noofmonths || 1,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_Closed").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/OpenUpcomingIPO";
+		ajaxHit.data = {
+			pid : 182,
+			isopen : 2,
+			noofmonths : 6,
+			pagesize : ajaxHit.data.pagesize || 25,
+			pageno : 1
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_rl_All").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/ListedIPOData";
+		ajaxHit.data = {
+			pid : 183
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_rl_TTD").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/ListedIPOData";
+		ajaxHit.data = {
+			pid : 184
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_rl_BTD").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/ListedIPOData";
+		ajaxHit.data = {
+			pid : 185
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_rl_TLD").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/ListedIPOData";
+		ajaxHit.data = {
+			pid : 186
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	$("#ipo_rl_BLD").click(function(){
+		ajaxHit.url = "http://etfeeds.indiatimes.com/ETService/ListedIPOData";
+		ajaxHit.data = {
+			pid : 187
+		};		
+		updateInfo();
+		etm.instantAct(this);
+	});
+	
+	$("#myzone_lastviewed").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/multicompanyobject";
+		ajaxHit.data = {};
+		ajaxHit.data.pid = 500;
+		ajaxHit.data.sortorder = "desc";
+		ajaxHit.data.sortby = "percentchange";
+		updateInfo();
+		etm.instantAct(this);
+		
+		// Change Loading Text
+		$(".loadingImg b").text("My Last Viewed Companies");
+	});
+	
+	$("#myzone_notification").click(function(){
+		ajaxHit.url = "http://json.bselivefeeds.indiatimes.com/ET_Community/corporateannounce";
+		ajaxHit.data = {};
+		ajaxHit.data.pid = 502;
+		updateInfo();
+		etm.instantAct(this);
+		
+		// Change Loading Text
+		$(".loadingImg b").text("My Notifications");
+	});
+	
+	$("#myzone_recommendations").click(function(){
+		ajaxHit.url = "http://economictimes.indiatimes.com/companyrecommendation";
+		ajaxHit.data = {};
+		ajaxHit.data.pid = 503;
+		updateInfo();
+		etm.instantAct(this);
+		
+		// Change Loading Text
+		$(".loadingImg b").text("My Recommendations");
+	});
+	
+	etFeedback.init();
+});
+
+// Setting Header HTML of the Table
+etm.setHeader = function(){
+	var html = "";
+	
+	$("#dataDisplay .headers .tHeader, #dataDisplay .headers .tHeader + .clr").remove();
+					
+	if(ajaxHit.data.pid == 2){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("firstprice") + "' data-sortby='firstprice'><b>Price at " + ajaxHit.data.starttime.replace("-", ":") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("secondprice") + "' data-sortby='secondprice'><b>Price at " + ajaxHit.data.endtime.replace("-", ":") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("abschange") + "' data-sortby='abschange'><b>Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Change</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 3){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("abschange") + "' data-sortby='abschange'><b>Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='pdl20'><b>Day's Low / High</b></li>";
+		
+		if(ajaxHit.data.service == "volumemovers"){
+			html += "<li class='w110 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol <span style='font-size:11px'>('000s)</span></b><button class='spriteMkt' /></li>";
+		} else {
+			html += "<li class='w110 alignR " + etm.sortClass("value") + "' data-sortby='value'><b>Value <span style='font-size:11px'>(&#8377; Cr)</span></b><button class='spriteMkt' /></li>";
+		}
+	} else if(ajaxHit.data.pid == 4){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80'><b>Sector</b></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("abschange") + "' data-sortby='abschange'><b>Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass(ajaxHit.data.service == "sellers" ? "bestsellqty" : "bestbuyqty") + "' data-sortby='" + (ajaxHit.data.service == "sellers" ? "bestsellqty" : "bestbuyqty") + "'><b>" + (ajaxHit.data.service == "sellers" ? "Offer" : "Bid") + " Qty.</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Volume</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 5 || ajaxHit.data.pid == 6 || ajaxHit.data.pid == 7 || ajaxHit.data.pid == 8){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Change</b><button class='spriteMkt' /></li>";
+		
+		if(ajaxHit.data.pid == 5 || ajaxHit.data.pid == 7){
+			html += "<li class='w120 pdl20 alignC'><b>Day's<br/>Low / High</b></li>";
+			html += "<li class='w100 alignR " + etm.sortClass("fiftytwoweekhighprice") + "' data-sortby='fiftytwoweekhighprice'><b>52W High</b><button class='spriteMkt' /></li>";
+		} else if(ajaxHit.data.pid == 6 || ajaxHit.data.pid == 8){
+			html += "<li class='w100 pdr20 alignR " + etm.sortClass("fiftytwoweeklowprice") + "' data-sortby='fiftytwoweeklowprice'><b>52W Low</b><button class='spriteMkt' /></li>";
+			html += "<li class='w120 alignC'><b>Day's<br/>Low / High</b></li>";
+		}
+		
+		if(ajaxHit.data.pid == 5 || ajaxHit.data.pid == 6) {
+			html += "<li class='w80 alignC " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol <span style='font-size:11px'>('000s)</span></b><button class='spriteMkt' /></li>";
+		} else {
+			html += "<li class='w70 alignR " + etm.sortClass("percentgap") + "' data-sortby='percentgap'><b>Gap %</b><button class='spriteMkt' /></li>";
+		}
+	} else if(ajaxHit.data.pid == 9){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("high") + "' data-sortby='high'><b>Day's High</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("belowdayhigh") + "' data-sortby='belowdayhigh'><b>Below Day's<br />High (&#8377;)</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("percentbelowdayhigh") + "' data-sortby='percentbelowdayhigh'><b>% Below Day's<br />High</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol <span style='font-size:11px'>('000s)</span></b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 10){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("low") + "' data-sortby='low'><b>Day's Low</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("abovedaylow") + "' data-sortby='abovedaylow'><b>Above Day's<br />Low (&#8377;)</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("percentabovedaylow") + "' data-sortby='percentabovedaylow'><b>% Above Day's<br />Low</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol <span style='font-size:11px'>('000s)</span></b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 11){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w60 alignR " + etm.sortClass("percentagechange") + "' data-sortby='percentagechange'><b>% Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("averagevolume") + "' data-sortby='averagevolume'><b>Avg. Vol</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("volumepercentagechange") + "' data-sortby='volumepercentagechange'><b>%Chg Vol</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("marketcap") + "' data-sortby='marketcap'><b>Mkt Cap</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 12){
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignR " + etm.sortClass("percentagechange") + "' data-sortby='percentagechange'><b>Day % Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>" + ajaxHit.data.compareprice.replace(/DAY_/gi, "") + " Days % Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Volume</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("marketcap") + "' data-sortby='marketcap'><b>Mkt. Cap</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid >= 13 && ajaxHit.data.pid <= 16){
+		var tH = "<div class='tHeader' style='margin-left:130px; width:240px'>Today's Data</div><div class='tHeader' style='width:340px'>Last " + (ajaxHit.data.noofdays ? ajaxHit.data.noofdays : 3) + " Day's Data</div><div class='clr' />";
+		$("#dataDisplay .headers").prepend(tH);
+		
+		html += "<li class='w100 " + etm.sortClass("companyname") + "' data-sortby='companyname'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("closePrice") + "' data-sortby='closePrice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("pricepercentchange") + "' data-sortby='pricepercentchange'><b>%Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volumepercentchange") + "' data-sortby='volumepercentchange'><b>Vol</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("pricechange") + "' data-sortby='pricechange'><b>Price Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("pricepercentchange") + "' data-sortby='pricepercentchange'><b>%Price Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volumechange") + "' data-sortby='volumechange'><b>Vol Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volumepercentchange") + "' data-sortby='volumepercentchange'><b>%Vol Chg</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 20 || ajaxHit.data.pid == 502){
+		html = "<li class='w90'>Date</li>";
+		html += "<li class='w120'><b>Company Name</b></li>";
+		html += "<li class='w500 alignC'>Announcement</li>";
+	} else if(ajaxHit.data.pid == 21){
+		html = "<div class='tHeader' style='margin-left:210px; width:160px'>Face Value</div>";
+		html += "<div class='tHeader' style='margin-left:10px; width:350px'>Date</div>";
+		html += "<div class='clr' />";
+		$("#dataDisplay .headers").prepend(html);
+		
+		html = "<li class='w190 " + etm.sortClass("1") + "' data-sortby='1' style='font-size:13px'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("5") + "' data-sortby='5' style='font-size:13px'><b>Old</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignC " + etm.sortClass("6") + "' data-sortby='6' style='font-size:13px'><b>New</b><button class='spriteMkt' /></li>";
+		html += "<li class='w130 alignR " + etm.sortClass("2") + "' data-sortby='2' style='font-size:13px'><b>Announcement</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignR " + etm.sortClass("3") + "' data-sortby='3' style='font-size:13px'><b>Record</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("4") + "' data-sortby='4' style='font-size:13px'><b>Ex-Split</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 22){
+		html = "<div class='tHeader' style='margin-left:210px; width:160px'>Bonus Ratio</div>";
+		html += "<div class='tHeader' style='margin-left:10px; width:350px'>Date</div>";
+		html += "<div class='clr' />";
+		$("#dataDisplay .headers").prepend(html);
+		
+		html = "<li class='w200 " + etm.sortClass("1") + "' data-sortby='1' style='font-size:13px'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w150 alignR' style='font-size:13px'>(Offered : Existing)</li>";
+		html += "<li class='w120 alignR " + etm.sortClass("2") + "' data-sortby='2' style='font-size:13px'><b>Announcement</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("3") + "' data-sortby='3' style='font-size:13px'><b>Record</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("4") + "' data-sortby='4' style='font-size:13px'><b>Ex-Bonus</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 23){
+		html = "<div class='tHeader' style='margin-left:160px; width:110px'>Rights Ratio</div>";
+		html += "<div class='tHeader' style='margin-left:190px; width:270px'>Date</div>";
+		html += "<div class='clr' />";
+		$("#dataDisplay .headers").prepend(html);
+		
+		html = "<li class='w160 " + etm.sortClass("1") + "' data-sortby='1' style='font-size:13px'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignC' style='font-size:11px'>Offered : Existing</li>";
+		html += "<li class='w60 alignC " + etm.sortClass("5") + "' data-sortby='5' style='font-size:13px'><b title='Face Value'>FV</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("6") + "' data-sortby='6' style='font-size:13px'><b>Premium</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("2") + "' data-sortby='2' style='font-size:13px'><b title='Announcement'>Announce</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("3") + "' data-sortby='3' style='font-size:13px'><b>Record</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("4") + "' data-sortby='4' style='font-size:13px'><b>Ex-Rights</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 24){
+		html = "<div class='tHeader' style='float:right; width:220px'>Date</div>";
+		html += "<div class='clr' />";
+		$("#dataDisplay .headers").prepend(html);
+		
+		html = "<li class='w160 " + etm.sortClass("1") + "' data-sortby='1' style='font-size:13px'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("5") + "' data-sortby='5' style='font-size:13px'><b>DPS</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("6") + "' data-sortby='6' style='font-size:13px'><b>Dividend %</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("7") + "' data-sortby='7' style='font-size:13px'><b>Type</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("2") + "' data-sortby='2' style='font-size:13px'><b title='Announcement'>Announce</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("4") + "' data-sortby='4' style='font-size:13px'><b title='Ex-Dividend'>Ex-Div</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 25){
+		html = "<li class='w250 " + etm.sortClass("1") + "' data-sortby='1'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w130 alignR " + etm.sortClass("5") + "' data-sortby='5'><b>Start Date</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 alignR " + etm.sortClass("6") + "' data-sortby='6'><b>End Date</b><button class='spriteMkt' /></li>";
+		html += "<li class='w200 alignC " + etm.sortClass("4") + "' data-sortby='4'><b>Agenda</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 26){
+		html = "<li class='w210 " + etm.sortClass("1") + "' data-sortby='1'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignR " + etm.sortClass("2") + "' data-sortby='2'><b>Meeting Date</b><button class='spriteMkt' /></li>";
+		html += "<li class='pdl40 w350 " + etm.sortClass("3") + "' data-sortby='3'><b>Agenda</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 27){
+		html = "<div class='tHeader' style='margin-left:180px; width:220px'>Date</div>";
+		html += "<div class='tHeader' style='float:right; width:160px'>Book Closure</div>";
+		html += "<div class='clr' />";
+		$("#dataDisplay .headers").prepend(html);
+		
+		html = "<li class='w160 " + etm.sortClass("1") + "' data-sortby='1' style='font-size:13px'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignC " + etm.sortClass("2") + "' data-sortby='2' style='font-size:13px'><b title='Announcement'>Announce</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignR " + etm.sortClass("3") + "' data-sortby='3' style='font-size:13px'><b>Meeting</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignC " + etm.sortClass("4") + "' data-sortby='4' style='font-size:13px'><b>Purpose</b><button class='spriteMkt' /></li>";
+		html += "<li class='w110 alignC " + etm.sortClass("5") + "' data-sortby='5' style='font-size:13px'><b>From</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("6") + "' data-sortby='6' style='font-size:13px'><b>To</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 28){
+		html = "<li class='w350 " + etm.sortClass("1") + "' data-sortby='1'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w170 alignR " + etm.sortClass("4") + "' data-sortby='4'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w170 alignR " + etm.sortClass("3") + "' data-sortby='3'><b>Delisting Date</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 29){
+		html = "<li class='w350 " + etm.sortClass("1") + "' data-sortby='1'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w170 alignR " + etm.sortClass("4") + "' data-sortby='4'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w170 alignR " + etm.sortClass("3") + "' data-sortby='3'><b>Suspended Date</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 30 || ajaxHit.data.pid == 31){
+		html = "<li class='w180 " + etm.sortClass("1") + "' data-sortby='1'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("2") + "' data-sortby='2'><b>Date</b><button class='spriteMkt' /></li>";
+		html += "<li class='w160 pdl20 " + etm.sortClass("3") + "' data-sortby='3'><b>Client</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("4") + "' data-sortby='4'><b>Action</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("5") + "' data-sortby='5'><b>Traded Quantity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("6") + "' data-sortby='6'><b>Traded Price</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 32 || ajaxHit.data.pid == 33){
+		html += "<li class='w150'>Dates</li>";
+		html += "<li class='w280'>";
+			html += "<div style='border-bottom:1px solid #CCC; text-align:center; padding-bottom:3px'>Equity (&#8377; Cr.)</div>";
+			html += "<div class='flt w100 alignR' style='font-size:11px'>Gross Purchase</div>";
+			html += "<div class='flt w90 alignR' style='font-size:11px'>Gross Sale</div>";
+			html += "<div class='flt w90 alignR' style='font-size:11px'>Net Pur./Sale</div>";
+			html += "<div class='clr'></div>";
+		html += "</li>";
+		html += "<li class='w280'>";
+			html += "<div style='border-bottom:1px solid #CCC; text-align:center; padding-bottom:3px'>Debt (&#8377; Cr.)</div>";
+			html += "<div class='flt w100 alignR' style='font-size:11px'>Gross Purchase</div>";
+			html += "<div class='flt w90 alignR' style='font-size:11px'>Gross Sale</div>";
+			html += "<div class='flt w90 alignR' style='font-size:11px'>Net Pur./Sale</div>";
+			html += "<div class='clr'></div>";
+		html += "</li>";
+	} else if(ajaxHit.data.pid == 35){
+		html += "<li class='w140'>Index Name</li>";
+		html += "<li class='w80 alignC'>Value</li>";
+		html += "<li class='w80 alignR'>Prev. Close</li>";
+		html += "<li class='w80 alignR'>Change</li>";
+		html += "<li class='w80 alignR'>% Change</li>";
+		html += "<li class='w100 alignC'>Trend<li>"
+		html += "<li class='w120'>Advance/Decline<li>"
+	} else if(ajaxHit.data.pid == 36 || ajaxHit.data.pid == 37){
+		html += "<li class='w100 " + etm.sortClass("companyname") + "' data-sortby='companyname'><b>Company</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("absolutechange") + "' data-sortby='absolutechange'><b>Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("percentagechange") + "' data-sortby='percentagechange'><b>%Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 pdl20 alignC'>Today's Low/High</li>";
+		html += "<li class='w120 pdl20 alignC'>52 Wk Low/High</li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol <span style='font-size:11px'>('000s)</span></b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid >= 50 && ajaxHit.data.pid <= 54){
+		html = "<li class='w50 alignL " + etm.sortClass("CurrentYearRank") + "' data-sortby='CurrentYearRank'><b>Rank<br>"+ ajaxHit.data.year +"</b><button class='spriteMkt' /></li>";
+		html += "<li class='w50 alignL " + etm.sortClass("PreviousYearRank") + "' data-sortby='PreviousYearRank'><b>Rank<br>"+ (ajaxHit.data.year - 1) +"</b><button class='spriteMkt' /></li>";
+		html += "<li class='w150 " + etm.sortClass("companyname") + "' data-sortby='companyname'><b>Company</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("revenue") + "' data-sortby='revenue'><b>Revenue<br><span style='font-size:11px'>(&#8377; Cr)</span></b><button class='spriteMkt' /></li>";
+		html += "<li class='w60 alignR " + etm.sortClass("revPercentChange") + "' data-sortby='revPercentChange'><b>Revenue<br>%CHG</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("netProfit") + "' data-sortby='netProfit'><b>PAT<br><span style='font-size:11px'>(&#8377; Cr)</span></b><button class='spriteMkt' /></li>";
+		html += "<li class='w60 alignR'>PAT<br>%CHG</li>";
+		html += "<li class='w70 alignR " + etm.sortClass("mcap") + "' data-sortby='mcap'><b>MCAP<br><span style='font-size:11px'>(&#8377; Cr)</span></b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("assets") + "' data-sortby='assets'><b>ASSETS<br><span style='font-size:11px'>(&#8377; Cr)</span></b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 83 || ajaxHit.data.pid == 84){
+		html = "<li class='w130 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80'>Hub</li>";
+		html += "<li class='w80 alignR " + etm.sortClass("lasttradedprice") + "' data-sortby='lasttradedprice'><b>Spot</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("change") + "' data-sortby='change'><b>Change in Spot</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>%Change in Spot</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("fandoprice") + "' data-sortby='fandoprice'><b>Futures</b><button class='spriteMkt' /></li>";
+		html += "<li class='w60 alignR'>Unit</li>";
+		html += "<li class='w90 alignR " + etm.sortClass("premiumdiscount") + "' data-sortby='premiumdiscount'><b>Prem/Disc</b><button class='spriteMkt' /></li>"
+	} else if(ajaxHit.data.pid == 81 || ajaxHit.data.pid == 82 || (ajaxHit.data.pid >= 85 && ajaxHit.data.pid <= 102) || ajaxHit.data.pid == 113){
+		html = "<li class='w110 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR'>Expiry</li>";
+		html += "<li class='w110 alignR " + etm.sortClass("lasttradedprice") + "' data-sortby='lasttradedprice'><b>Price/Unit</b><button class='spriteMkt' /></li>";
+		if(ajaxHit.data.pid != 101){
+			html += "<li class='w50 alignR " + etm.sortClass("change") + "' data-sortby='change'><b title='Change'>Chg</b><button class='spriteMkt' /></li>";
+		}
+		html += "<li class='w70 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>%Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='" + (ajaxHit.data.pid == 101 ? "w70" : "w90") + " alignR " + etm.sortClass(ajaxHit.data.pid == 113 ? "value" : "volume") + "' data-sortby='" + (ajaxHit.data.pid == 113 ? "value" : "volume") + "' title='" + (ajaxHit.data.pid == 113 ? "Traded Value" : "Traded Contracts") + "'><b>" + (ajaxHit.data.pid == 113 ? "Value (<span style='font-size:11px'>Cr.</span>)" : "Volume") + "</b><button class='spriteMkt' /></li>";
+		if(ajaxHit.data.pid == 101){
+			html += "<li class='w70 alignR " + etm.sortClass("volumesurger") + "' data-sortby='volumesurger'><b>% Volume Change</b><button class='spriteMkt' /></li>";
+		}
+		html += "<li class='w120 pdl20 graphBar'>Day's Low/High</li>";
+	} else if(ajaxHit.data.pid == 103 || ajaxHit.data.pid == 104){
+		html += "<li class='w120 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR'>Expiry</li>";
+		html += "<li class='w110 alignR " + etm.sortClass("lasttradedprice") + "' data-sortby='lasttradedprice'><b>Price/Unit</b><button class='spriteMkt' /></li>";
+		html += "<li class='w120 pdl20 graphBar'>Day's Low/High</li>";
+		html += "<li class='w80 alignR " + etm.sortClass(ajaxHit.data.pid == 103 ? "52weekhigh" : "52weeklow") + "' data-sortby='" + (ajaxHit.data.pid == 103 ? "52weekhigh" : "52weeklow") + "'><b>52W " + (ajaxHit.data.pid == 103 ? "Hgh" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("change") + "' data-sortby='change'><b>Change in " + (ajaxHit.data.pid == 103 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>%Change in " + (ajaxHit.data.pid == 103 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 105 || ajaxHit.data.pid == 106){
+		html += "<li class='w130 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR'>Expiry</li>";
+		html += "<li class='w120 alignR " + etm.sortClass("lasttradedprice") + "' data-sortby='lasttradedprice'><b>Price/Unit</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass(ajaxHit.data.pid == 105 ? "highprice" : "lowprice") + "' data-sortby='" + (ajaxHit.data.pid == 105 ? "highprice" : "lowprice") + "'><b>Day's " + (ajaxHit.data.pid == 105 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignR " + etm.sortClass("Contractlow") + "' data-sortby='Contractlow'><b title='Contract " + (ajaxHit.data.pid == 105 ? "High" : "Low") + " *Till Previous Day'>Cont. " + (ajaxHit.data.pid == 105 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("change") + "' data-sortby='change'><b>Change  in " + (ajaxHit.data.pid == 105 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>%Change in " + (ajaxHit.data.pid == 105 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 107 || ajaxHit.data.pid == 108){
+		html += "<li class='w150 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR'>Expiry</li>";
+		html += "<li class='w120 alignR " + etm.sortClass("lasttradedprice") + "' data-sortby='lasttradedprice'><b>Price/Unit</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass(ajaxHit.data.pid == 107 ? "highprice" : "lowprice") + "' data-sortby='" + (ajaxHit.data.pid == 107 ? "highprice" : "lowprice") + "'><b>" + (ajaxHit.data.pid == 107 ? "Day's High" : "Day's Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("change") + "' data-sortby='change'><b>Chg from " + (ajaxHit.data.pid == 107 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>%Chg from " + (ajaxHit.data.pid == 107 ? "High" : "Low") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume' title='Traded Contracts'><b>Volume</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 109){
+		html += "<li class='w140 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w130 alignR " + etm.sortClass("nearmonthlasttradedprice") + "' data-sortby='nearmonthlasttradedprice'><b>Near Mnth Price</b><button class='spriteMkt' /></li>";
+		html += "<li class='w130 alignR " + etm.sortClass("farmonthlasttradedprice") + "' data-sortby='farmonthlasttradedprice'><b>Far Month Price</b><button class='spriteMkt' /></li>";
+		html += "<li class='w50 alignR'>Unit</li>";
+		html += "<li class='w70 alignR " + etm.sortClass("spread") + "' data-sortby='spread'><b>Spread</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("spreadpercentchange") + "' data-sortby='spreadpercentchange'><b>Spread%</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR'><b>Sparkline</li>";
+	} else if(ajaxHit.data.pid == 110 || ajaxHit.data.pid == 111){
+		html += "<li class='w140 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR'>Expiry</li>";
+		html += "<li class='w90 alignR " + etm.sortClass("fandoprice") + "' data-sortby='fandoprice'><b>Futures</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("spotprice") + "' data-sortby='spotprice'><b>Spot</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR'>Unit</li>";
+		html += "<li class='w80 alignR " + etm.sortClass("premiumdiscount") + "' data-sortby='premiumdiscount'><b>" + (ajaxHit.data.pid == 110 ? "Premium" : "Discount") + "</b><button class='spriteMkt' /></li>";
+		html += "<li class='w60 alignR " + etm.sortClass("premiumdiscountchange") + "' data-sortby='premiumdiscountchange'><b title='" + (ajaxHit.data.pid == 110 ? "Premium" : "Discount") + " %'>" + (ajaxHit.data.pid == 110 ? "Pre" : "Disc") + "%</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume' title='Traded Contracts'><b>Volume</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid == 112){
+		html += "<li class='w130 " + etm.sortClass("commodityname") + "' data-sortby='commodityname'><b>Commodity</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR'>Expiry</li>";
+		html += "<li class='w80 alignR " + etm.sortClass("bestbuyprice") + "' data-sortby='bestbuyprice'><b>Bid Price</b><button class='spriteMkt' /></li>";
+		html += "<li class='w90 alignR " + etm.sortClass("bestsellprice") + "' data-sortby='bestsellprice'><b>Ask Price</b><button class='spriteMkt' /></li>";
+		html += "<li class='w60 alignR'>Unit</li>";
+		html += "<li class='w70 alignR " + etm.sortClass("spread") + "' data-sortby='spread'><b>Spread</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("openinterest") + "' data-sortby='openinterest'><b title='Open Interest'>Open Int.</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("volume") + "' data-sortby='volume' title='Traded Contracts'><b>Volume</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid >= 121 && ajaxHit.data.pid <= 131){
+		var periodName = "1 W",
+			periodTitle = "1 Week";
+		
+		switch (ajaxHit.data.period){
+			case "r1month" :
+				periodName = "1 M";
+				periodTitle = "1 Month";
+				break;
+			case "r3month" :
+				periodName = "3 M";
+				periodTitle = "3 Months";
+				break;
+			case "r6month" :
+				periodName = "6 M";
+				periodTitle = "6 Months";
+				break;
+			case "r1year" :
+				periodName = "1 Y";
+				periodTitle = "1 Year";
+				break;
+			case "r3year" :
+				periodName = "3 Y";
+				periodTitle = "3 Years";
+				break;
+			case "rytd" :
+				periodName = "YTD";
+				periodTitle = "YTD";
+				break;
+			default : 
+				periodName = "1 W";
+				periodTitle = "1 Week";
+		}
+		
+		if(ajaxHit.data.pid != 127){
+			if(ajaxHit.data.pid == 131){
+				html = "<li class='w200'>Scheme Name</li>";
+				html += "<li class='w70 alignR'>NAV</li>";
+			} else {
+				html = "<li class='w200 " + etm.sortClass("schemename") + "' data-sortby='schemename'><b>Scheme Name</b><button class='spriteMkt' /></li>";
+				html += "<li class='w70 alignR " + etm.sortClass("latestnav") + "' data-sortby='latestnav'><b>NAV</b><button class='spriteMkt' /></li>";
+			}
+		}
+		
+		if(ajaxHit.data.pid <= 124){
+			if(ajaxHit.data.pid == 124){
+				html += "<li class='w60 alignR " + etm.sortClass("sharperatio") + "' data-sortby='sharperatio'><b>Sharpe<br />Ratio</b><button class='spriteMkt' /></li>";
+			}
+			html += "<li class='w80 alignR " + etm.sortClass(ajaxHit.data.period) + "' data-sortby='" + ajaxHit.data.period + "'><b title='" + periodTitle + "'>Returns<br />" + periodName + "</b><button class='spriteMkt' /></li>";
+			if(ajaxHit.data.pid == 122){
+				html += "<li class='w80 alignC'>Rating</li>";
+			} else {
+				html += "<li class='w80 alignC " + etm.sortClass("vrratings") + "' data-sortby='vrratings'><b>Rating</b><button class='spriteMkt' /></li>";
+			}
+			
+			html += "<li class='w80 alignR " + etm.sortClass("aum") + "' data-sortby='aum'><b>AUM<br /><span style='font-size:11px; font-weight:100'>(&#8377; Cr.)</span></b><button class='spriteMkt' /></li>";
+			html += "<li class='w100 alignC'><div style='border-bottom:1px solid #CCC'>Style Box</div><div class='flt w50 alignC' style='font-size:12px'>Equity</div><div class='flt w50 alignC' style='font-size:12px'>Debt</div><div class='clr'></div></li>";
+			if(ajaxHit.data.pid != 124){
+				html += "<li class='w60 alignR " + etm.sortClass("expenseratio") + "' data-sortby='expenseratio'><b>Expense<br />Ratio</b><button class='spriteMkt' /></li>";
+			}
+		} else if(ajaxHit.data.pid == 125){
+			html += "<li class='w60 alignR " + etm.sortClass("aum") + "' data-sortby='aum'><b>AUM<br /><span style='font-size:11px; font-weight:100'>(&#8377; Cr.)</span></b><button class='spriteMkt'/></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("absolutechange") + "' data-sortby='absolutechange'><b>Abs Chg<br /><span style='font-size:11px; font-weight:100'>in AUM</b></span><button class='spriteMkt'/></li>";
+			html += "<li class='w70 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Chg<br /><span style='font-size:11px; font-weight:100'>in AUM</span></b><button class='spriteMkt'/></li>";
+			html += "<li class='w70 alignR " + etm.sortClass(ajaxHit.data.period) + "' data-sortby='" + ajaxHit.data.period + "'><b title='" + periodTitle + "'>Returns<br />" + periodName + "</b><button class='spriteMkt' /></li>";
+			html += "<li class='alignC'><div style='border-bottom:1px solid #CCC'>Style Box</div><div class='flt w60 alignC' style='font-size:12px'>Equity</div><div class='flt w60 alignC' style='font-size:12px'>Debt</div><div class='clr'></div></li>";
+		} else if(ajaxHit.data.pid == 126){
+			html += "<li class='w60 alignR " + etm.sortClass("expenseratio") + "' data-sortby='expenseratio'><b>Expense<br />Ratio</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass(ajaxHit.data.period) + "' data-sortby='" + ajaxHit.data.period + "'><b title='" + periodTitle + "'>Returns<br />" + periodName + "</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignC " + etm.sortClass("vrratings") + "' data-sortby='vrratings'><b>Rating</b><button class='spriteMkt' /></li>";
+			html += "<li class='w60 alignR " + etm.sortClass("aum") + "' data-sortby='aum'><b>AUM<br /><span style='font-size:11px; font-weight:100'>(&#8377; Cr.)</span></b><button class='spriteMkt'/></li>";
+			html += "<li class='alignC'><div style='border-bottom:1px solid #CCC'>Style Box</div><div class='flt w60 alignC' style='font-size:12px'>Equity</div><div class='flt w60 alignC' style='font-size:12px'>Debt</div><div class='clr'></div></li>";
+		} else if(ajaxHit.data.pid == 127){
+			html = "<li class='w190 " + etm.sortClass("primaryobjective") + "' data-sortby='primaryobjective'><b>Category Name</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("r1week") + "' data-sortby='r1week'><b title='1 Week'>1 W (%)</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("r1month") + "' data-sortby='r1month'><b title='1 Month'>1 M (%)</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("r6month") + "' data-sortby='r6month'><b title='6 Months'>6 M(%)</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("r1year") + "' data-sortby='r1year'><b title='1 Year'>1 Y (%)</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("r3year") + "' data-sortby='r3year'><b title='3 Years'>3 Y (%)</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("rytd") + "' data-sortby='rytd'><b title='Year to Date'>YTD(%)</b><button class='spriteMkt' /></li>";
+		} else if(ajaxHit.data.pid == 128){
+			html += "<li class='w100 alignR " + etm.sortClass("recorddate") + "' data-sortby='recorddate'><b>Record<br />Date</b><button class='spriteMkt' /></li>";
+			html += "<li class='w100 alignR " + etm.sortClass("dividend") + "' data-sortby='dividend'><b>% Dividend</b><button class='spriteMkt' /></li>";
+			html += "<li class='w100 alignR " + etm.sortClass("value") + "' data-sortby='value'><b>Value<br /><span style='font-size:11px; font-weight:100'>(&#8377;)</span></b><button class='spriteMkt' /></li>";
+			html += "<li class='w100 alignR " + etm.sortClass(ajaxHit.data.period) + "' data-sortby='" + ajaxHit.data.period + "'><b title='" + periodTitle + "'>Returns<br />" + periodName + "</b><button class='spriteMkt' /></li>";
+		} else if(ajaxHit.data.pid == 130){
+			html += "<li class='w80 alignR'>Returns<br />" + periodName + "</li>";
+			html += "<li class='w60 alignR'>Expense<br />Ratio</li>";
+			html += "<li class='w60 alignR'>AUM<br /><span style='font-size:11px; font-weight:100'>(&#8377; Cr.)</span></li>";
+			html += "<li class='w80 alignC'>Rating</li>";
+			html += "<li class='alignC'><div style='border-bottom:1px solid #CCC'>Style Box</div><div class='flt w60 alignC' style='font-size:12px'>Equity</div><div class='flt w60 alignC' style='font-size:12px'>Debt</div><div class='clr'></div></li>";
+		} else if(ajaxHit.data.pid == 131) {
+			html += "<li class='w80 alignR'>Returns<br />" + periodName + "</li>";
+			html += "<li class='w60 alignR'>Expense<br />Ratio</li>";
+			html += "<li class='w60 alignR'>AUM<br /><span style='font-size:11px; font-weight:100'>(&#8377; Cr.)</span></li>";
+			html += "<li class='w80 alignC'>Rating</li>";
+			html += "<li class='alignC'><div style='border-bottom:1px solid #CCC'>Style Box</div><div class='flt w60 alignC' style='font-size:12px'>Equity</div><div class='flt w60 alignC' style='font-size:12px'>Debt</div><div class='clr'></div></li>";
+		}
+	} else if(ajaxHit.data.pid >= 141 && ajaxHit.data.pid <= 145){
+		html += "<li class='w250 " + etm.sortClass("schemename") + "' data-sortby='schemename'><b>Scheme Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP (&#8377;)</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("absolutechange") + "' data-sortby='absolutechange'><b>Change</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Chg</b><button class='spriteMkt' /></li>";
+		html += "<li class='w100 alignC'>Today</li>";
+		html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Volume</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid >= 146 && ajaxHit.data.pid <= 150){
+		html += "<li class='w200 " + etm.sortClass("schemename") + "' data-sortby='schemename'><b>Scheme Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("latestnav") + "' data-sortby='latestnav'><b>NAV (&#8377;)</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("r1day") + "' data-sortby='r1day'><b>1 Day</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("r1week") + "' data-sortby='r1week'><b>1 Week</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("r1month") + "' data-sortby='r1month'><b>1 Month</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignR " + etm.sortClass("r1year") + "' data-sortby='r1year'><b>1 Year</b><button class='spriteMkt' /></li>";
+		html += "<li class='w70 alignR " + etm.sortClass("rytd") + "' data-sortby='rytd'><b>YTD</b><button class='spriteMkt' /></li>";
+	} else if(ajaxHit.data.pid >= 180 && ajaxHit.data.pid <= 182){
+		html = "<li class='w350'>IPO Name</li>";
+		html += "<li class='w120 alignR'>Offer Price</li>";
+		html += "<li class='w120 alignR'>Opening Date</li>";
+		html += "<li class='w100 alignR'>Closing Date</li>";
+	} else if(ajaxHit.data.pid >= 183 && ajaxHit.data.pid <= 187){
+		html = "<li class='w150'>IPO Name</li>";
+		html += "<li class='w80 alignR'>Listing<br />Date</li>";
+		html += "<li class='w70 alignR alignR'>Offer<br />Price</li>";
+		html += "<li class='w70 alignR'>Current<br />Price</li>";
+		html += "<li class='w70 alignR' title='" + ((ajaxHit.data.pid <= 185) ? "On basis of Offer & Current Price" : "On Basis of Current & Listing Price") + "'>% Change</li>";
+		html += "<li class='w70 alignR'>Holding<br />Period <span style='font-size:10px'>(Days)</span></li>";
+		html += "<li class='w70 alignR'>Annual<br />Returns</li>";
+		html += "<li class='w70 alignR'>Listing<br />Price</li>";
+	} else if(ajaxHit.data.pid == 503){
+		html = "<li class='w100'>Recomm. On</li>";
+		html += "<li class='w140'>Company Name</li>";
+		html += "<li class='w70 alignC'>Action</li>";
+		html += "<li class='w400 alignC'>Recommendations</li>";
+	} else {
+		// for pid : 0, 1, default
+		var prdName = {
+			"intraday" : "Day",
+			"7days" : "W",
+			"1month" : "M",
+			"3month" : "3 M",
+			"6month" : "6 M",
+			"1year" : "Y"
+		}
+		html = "<li class='w180 " + etm.sortClass("companyShortName") + "' data-sortby='companyShortName'><b>Company Name</b><button class='spriteMkt' /></li>";
+		html += "<li class='w80 alignC " + etm.sortClass("currentprice") + "' data-sortby='currentprice'><b>LTP</b><button class='spriteMkt' /></li>";
+		if(ajaxHit.data.sort == "intraday"){
+			html += "<li class='w80 alignR " + etm.sortClass("abschange") + "' data-sortby='abschange'><b>Change</b><button class='spriteMkt' /></li>";
+			html += "<li class='w100 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Change</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("volume") + "' data-sortby='volume'><b>Vol <span style='font-size:11px'>('000s)</span></b><button class='spriteMkt' /></li>";
+		} else {
+			html += "<li class='w100 alignR " + etm.sortClass("previousclose") + "' data-sortby='previousclose'><b>Prev. Close</b><button class='spriteMkt' /></li>";
+			html += "<li class='w80 alignR " + etm.sortClass("abschange") + "' data-sortby='abschange'><b>Change</b><button class='spriteMkt' /></li>";
+			html += "<li class='w90 alignR " + etm.sortClass("percentchange") + "' data-sortby='percentchange'><b>% Change</b><button class='spriteMkt' /></li>";
+		}
+		html += "<li class='pdl20'><b>" + (ajaxHit.data.sort ? prdName[ajaxHit.data.sort] : "Day") + "'s Low / High</b></li>";
+	}
+
+	$("#dataDisplay .headers ul").html(html);
+}
+
+// Setting Data HTML of the Table
+etm.setData = function(c, obj){
+	var html = "";
+	html += "<div class='dataList'><ul>";
+	function writeCompany(){		
+		html += "<li class='w180'><div class='flag iBlock spriteMkt' data-seo='" + obj.seoname + "' data-compid='" + obj.companyid + "'>";
+		if(typeof obj.eventCount != "undefined"){
+			if(obj.eventCount > 0){
+				html += "<b>" + (obj.eventCount >= 5 ? 5 : obj.eventCount) + "</b>";
+			} else {
+				html += "<b class='hidden'>+</b>";
+			}
+		} else {
+			html += "<b class='hidden'>+</b>";
+		}
+		html += "</div><p class='flt w150'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' title='" + obj.companyName2 + "' target='_blank'>" + obj.companyShortName + "</a></p><div class='clr'></div></li>";
+	}
+		
+	if(ajaxHit.data.pid == 2){
+		writeCompany();
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		html += "<li class='w120 alignR'><span class='vol'>" + obj.firstPrice + "</span></li>";
+		html += "<li class='w120 alignR'><span class='vol'>" + obj.secondPrice + "</span></li>";
+		html += "<li class='w80 alignR'><span class='change" + etm.setColor(obj.absChange) + "'>" + parseFloat(obj.absChange).toFixed(2) + "</span></li>";
+		html += "<li class='w80 alignR'><span class='pchange" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+	} else if(ajaxHit.data.pid == 3){
+		writeCompany();
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		html += "<li class='w80 alignR'><span class='change" + etm.setColor(obj.absChange) + "'>" + parseFloat(obj.absChange).toFixed(2) + "</span></li>";
+		html += "<li class='w100 alignR'><span class='pchange" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.current + "' style='margin-left:" + obj.bargraphvalue + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphvalue + "%' /></div><span class='flt'>" + obj.low + "</span><span class='flr'>" + obj.high + "</span><div class='clr' /></li>";
+		
+		if(ajaxHit.data.service == "volumemovers"){
+			html += "<li class='w100 alignR'><span class='vol' title='" + obj.volume + "'>" + obj.volumeInThousand + "</span></li>";
+		} else {
+			html += "<li class='w100 alignR'><span class='vol'>" + obj.value + "</span></li>";
+		}
+	} else if(ajaxHit.data.pid == 4){
+		writeCompany();
+		html += "<li class='w80' style='overflow:hidden; font-size:12px'><span title='" + obj.sectorName + "'>" + obj.sectorName + "</span></li>";
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		html += "<li class='w70 alignR'><span class='change" + etm.setColor(obj.absChange) + "'>" + parseFloat(obj.absChange).toFixed(2) + "</span></li>";
+		html += "<li class='w90 alignR'><span class='pchange" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		html += "<li class='w90 alignR'>" + (ajaxHit.data.service == "sellers" ? etm.addCommas(obj.bestSellQty) : etm.addCommas(obj.bestBuyQty)) + "</li>";
+		html += "<li class='w80 alignR'>" + etm.addCommas(obj.volume) + "</li>";
+	} else if(ajaxHit.data.pid == 5 || ajaxHit.data.pid == 6 || ajaxHit.data.pid == 7 || ajaxHit.data.pid == 8){
+		writeCompany();
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		html += "<li class='w80 pdr20 alignR'><span class='pchange" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		
+		if(ajaxHit.data.pid == 5 || ajaxHit.data.pid == 7){
+			html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.current + "' style='margin-left:" + obj.bargraphvalue + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphvalue + "%' /></div><span class='flt'>" + obj.low + "</span><span class='flr'>" + obj.high + "</span><div class='clr' /></li>";
+			html += "<li class='w100 alignR'>" + obj.fiftyTwoWeekHighPrice + "</li>";
+		} else {
+			html += "<li class='w100 pdr20 alignR'>" + obj.fiftyTwoWeekLowPrice + "</li>";
+			html += "<li class='w120 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.current + "' style='margin-left:" + obj.bargraphvalue + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphvalue + "%' /></div><span class='flt'>" + obj.low + "</span><span class='flr'>" + obj.high + "</span><div class='clr' /></li>";
+		}
+		
+		if(ajaxHit.data.pid == 5 || ajaxHit.data.pid == 6){
+			html += "<li class='w80 alignR'><span class='vol'>" + parseFloat(obj.volumeInThousand).toFixed(2) + "</span></li>";
+		} else {
+			html += "<li class='w70 alignR'><span class='vol'>" + parseFloat(obj.percentGap).toFixed(2) + "</span></li>";
+		}
+	} else if(ajaxHit.data.pid == 9 || ajaxHit.data.pid == 10){
+		writeCompany();
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		if(ajaxHit.data.pid == 9){
+			html += "<li class='w100 alignR'>" + obj.high + "</li>";
+			html += "<li class='w120 alignR'>" + parseFloat(obj.belowDayHigh).toFixed(2) + "</li>";
+			html += "<li class='w120 alignR'>" + parseFloat(obj.percentBelowDayHigh).toFixed(2) + "</li>";
+		} else {
+			html += "<li class='w100 alignR'>" + obj.low + "</li>";
+			html += "<li class='w120 alignR'>" + parseFloat(obj.aboveDayLow).toFixed(2) + "</li>";
+			html += "<li class='w120 alignR'>" + parseFloat(obj.percentAboveDayLow).toFixed(2) + "</li>";
+		}
+		
+		html += "<li class='w80 alignR'>" + obj.volumeInThousand + "</li>";
+	} else if(ajaxHit.data.pid == 11 || ajaxHit.data.pid == 12){
+		writeCompany();
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		if(ajaxHit.data.pid == 11){
+			html += "<li class='w60 alignR'>" + parseFloat(obj.percentChange).toFixed(2) + "</li>";
+			html += "<li class='w80 alignR'>" + obj.volume + "</li>";			
+			html += "<li class='w90 alignR'>" + parseInt(obj.averageVolume) + "</li>";
+			html += "<li class='w90 alignR'>" + parseFloat(obj.volumePercentageChange).toFixed(1) + "</li>";
+		} else {
+			html += "<li class='w110 alignR'><span class='change" + etm.setColor(obj.percentagechange) + "'>" + parseFloat(obj.percentagechange).toFixed(2) + "</span></li>";
+			html += "<li class='w120 alignR'><span class='change" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+			html += "<li class='w100 alignR'>" + obj.volume + "</li>";
+		}
+		html += "<li class='w90 alignR'>" + (parseFloat(obj.marketCap) / 1e7).toFixed(2) + "</li>";
+	} else if(ajaxHit.data.pid >= 13 && ajaxHit.data.pid <= 16){
+		var lastDayData = (ajaxHit.data.noofdays == 5) ? obj.priceVolumeInfos.day_5 : obj.priceVolumeInfos.day_3;
+		
+		html += "<li class='w100'><a target='_blank' href='/" + obj.seoname + "/stocks/companyid-" + obj.companyId + ".cms'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w80 alignR'>" + obj.priceVolumeInfos.today.closePrice + "</li>";
+		html += "<li class='w80 alignR'>" + obj.priceVolumeInfos.today.pricePercentChange + "</li>";
+		html += "<li class='w80 alignR'>" + parseInt(obj.priceVolumeInfos.today.volumePercentChange) + "</li>";
+		
+		html += "<li class='w80 alignR'>" + lastDayData.priceChange + "</li>";
+		html += "<li class='w80 alignR'>" + lastDayData.pricePercentChange + "</li>";
+		html += "<li class='w80 alignR'>" + parseInt(lastDayData.volumeChange) + "</li>";
+		html += "<li class='w80 alignR'>" + parseFloat(lastDayData.volumePercentChange).toFixed(2) + "</li>";
+	} else if(ajaxHit.data.pid == 20 || ajaxHit.data.pid == 502){
+		html += "<li class='w90'>" + obj.updatedDateTime + "</li>";
+		html += "<li class='w120'><a href='/stocks/companyid-" + obj.compid + ".cms' target='_blank' title='" + obj.companyName2 + "'>" + (obj.symbol.length > 0 ? obj.companyShortName : "-") + "</a></li>";
+		html += "<li class='w500'>" + obj.caption + "</a><p style='font-size:10px; color:#777'>" + obj.fullText + "</p></li>";
+	} else if(ajaxHit.data.pid == 21){
+		html += "<li class='w190'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.id + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w80 alignC'>" + (obj.oldfacevalue != undefined ? obj.oldfacevalue : "-") + "</li>";
+		html += "<li class='w80 alignC'>" + (obj.newfacevalue != undefined ? obj.newfacevalue : "-") + "</li>";
+		html += "<li class='w110 alignR'>" + (obj.dateofannouncementstr != undefined ? obj.dateofannouncementstr : "-") + "</li>";
+		html += "<li class='w110 alignR'>" + (obj.recorddatestr != undefined ? obj.recorddatestr : "-") + "</li>";
+		html += "<li class='w100 alignR'>" + (obj.xsplitdatestr != undefined ? obj.xsplitdatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 22){
+		html += "<li class='w200'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.id + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w110 alignR'>" + (obj.ratioOffered != undefined ? obj.ratioOffered : "-") + "</li>";
+		html += "<li class='w160 alignR'>" + (obj.dateofannouncementstr != undefined ? obj.dateofannouncementstr : "-") + "</li>";
+		html += "<li class='w120 alignR'>" + (obj.recorddatestr != undefined ? obj.recorddatestr : "-") + "</li>";
+		html += "<li class='w100 alignR'>" + (obj.xbonusdatestr != undefined ? obj.xbonusdatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 23){
+		html += "<li class='w160'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.id + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w100 alignC'>" + (obj.rightsRatio != undefined ? obj.rightsRatio : "-") + "</li>";
+		html += "<li class='w60 alignC'>" + (obj.faceValue != undefined ? obj.faceValue : "-") + "</li>";
+		html += "<li class='w80 alignR'>" + (obj.premium != undefined ? obj.premium : "-") + "</li>";
+		html += "<li class='w100 alignR'>" + (obj.dateofannouncementstr != undefined ? obj.dateofannouncementstr : "-") + "</li>";
+		html += "<li class='w90 alignR'>" + (obj.recorddatestr != undefined ? obj.recorddatestr : "-") + "</li>";
+		html += "<li class='w80 alignR'>" + (obj.xrightsdatestr != undefined ? obj.xrightsdatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 24){
+		html += "<li class='w160'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w90 alignR'>" + (obj.dividendvalue != undefined ? obj.dividendvalue : "-") + "</li>";
+		html += "<li class='w120 alignC'>" + (obj.dividendpercent != undefined ? parseInt(obj.dividendpercent) : "-") + "</li>";
+		html += "<li class='w70 alignR'>" + (obj.dividendtype != undefined ? obj.dividendtype : "-") + "</li>";
+		html += "<li class='w120 alignR'>" + (obj.dateofannouncementstr != undefined ? obj.dateofannouncementstr : "-") + "</li>";
+		html += "<li class='w120 alignR'>" + (obj.xdividenddatestr != undefined ? obj.xdividenddatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 25){
+		html += "<li class='w250'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w130 alignR'>" + (obj.fromdatestr != undefined ? obj.fromdatestr : "-") + "</li>";
+		html += "<li class='w120 alignR'>" + (obj.todatestr != undefined ? obj.todatestr : "-") + "</li>";
+		html += "<li class='w200 alignC'>" + (obj.purpose != undefined ? obj.purpose : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 26){
+		html += "<li class='w210'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w110 alignR'>" + (obj.meetingdatestr != undefined ? obj.meetingdatestr : "-") + "</li>";
+		html += "<li class='pdl40 w350'>" + (obj.purpose != undefined ? obj.purpose : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 27){
+		html += "<li class='w160'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w110 alignR'>" + (obj.announcementdatestr != undefined ? obj.announcementdatestr : "-") + "</li>";
+		html += "<li class='w110 alignR'>" + (obj.datestr != undefined ? obj.datestr : "-") + "</li>";
+		html += "<li class='w110 alignC'>" + (obj.purpose != undefined ? obj.purpose : "-") + "</li>";
+		html += "<li class='w110 alignL'>" + (obj.fromdatestr != undefined ? obj.fromdatestr : "-") + "</li>";
+		html += "<li class='w80 alignR'>" + (obj.todatestr != undefined ? obj.todatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 28){
+		html += "<li class='w350'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.id + ".cms' target='_blank'>" + obj.companyname + "</a></li>";
+		html += "<li class='w170 alignR'>" + (obj.lasttradedprice != undefined ? obj.lasttradedprice : "-") + "</li>";
+		html += "<li class='w170 alignR'>" + (obj.delisteddatestr != undefined ? obj.delisteddatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 29){
+		html += "<li class='w350'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.id + ".cms' target='_blank'>" + obj.companyname + "</a></li>";
+		html += "<li class='w170 alignR'>" + (obj.lasttradedprice != undefined ? obj.lasttradedprice : "-") + "</li>";
+		html += "<li class='w170 alignR'>" + (obj.lasttradeddatestr != undefined ? obj.lasttradeddatestr : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 30 || ajaxHit.data.pid == 31){
+		html += "<li class='w180'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' target='_blank' title='" + obj.companyname + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w80 alignR'>" + (obj.dealdatestr != undefined ? obj.dealdatestr : "-") + "</li>";
+		html += "<li class='w160 pdl20' style='font-size:12px'>" + (obj.clientname != undefined ? obj.clientname : "-") + "</li>";
+		html += "<li class='w80 alignC'>" + (obj.transactiontype != undefined ? obj.transactiontype : "-") + "</li>";
+		html += "<li class='w80 alignR'>" + (obj.volumetraded != undefined ? obj.volumetraded : "-") + "</li>";
+		html += "<li class='w80 alignR'>" + (obj.tradedstockprice != undefined ? obj.tradedstockprice : "-") + "</li>";
+	} else if(ajaxHit.data.pid == 32 || ajaxHit.data.pid == 33){
+		html += "<li class='w150'>" + obj.transactionDatestr + "</li>";
+		html += "<li class='w100 alignR'>" + obj.epurchase + "</li>";
+		html += "<li class='w80 alignR'>" + obj.esales + "</li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.enetInvestment) + "'>" + obj.enetInvestment + "</span></li>";
+		html += "<li class='w100 alignR'>" + obj.dpurchase + "</li>";
+		html += "<li class='w80 alignR'>" + obj.dsales + "</li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.dnetInvestment) + "'>" + obj.dnetInvestment + "</span></li>";
+	} else if(ajaxHit.data.pid == 35){
+		html += "<li class='w140'>" + obj.indexname + "</li>";
+		html += "<li class='w80 alignR'><span class='ltp'>" + obj.lastvalue + "</span></li>";
+		html += "<li class='w80 alignR'>" + obj.previousclose + "</li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.changevalue) + "'>" + obj.changevalue + "</span></li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.percentagechange) + "'>" + obj.percentagechange + "</span></li>";
+		html += "<li class='w100'><div style='background:url(http://marketgraphs.economictimes.indiatimes.com/charting/IndexSparkLines1.aspx?width=140&height=40&chartmode=intraday&IndexID=" + obj.indexid + ") -24px -10px no-repeat; height:20px; margin-top:-4px;'></div></li>";
+		html += "<li class='w120'>";
+		html += "<div class='flt barText' style='font-size:11px'>" + obj.advances + "</div><div class='flr alignR' style='font-size:11px'>" + obj.declines + "</div><div class='clr' />";
+		html += "<div class='bars'><div class='flt barGreen' style='width:" + obj.advancesPercentange + "%' />" + (obj.nochange != 0 ? ("<div class='flt barGray' title='" + obj.nochange + "' style='width:" + obj.nochangePercentange + "%' />") : "") + "<div class='flt barRed' style='width:" + obj.declinesPercentange + "%' /><div class='clr' /></div></li>";
+	} else if(ajaxHit.data.pid == 36 || ajaxHit.data.pid == 37){
+		html += "<li class='w100'><a target='_blank' href='/" + obj.seoname.replace(/\'/, "") + "/stocks/companyid-" + obj.companyid + ".cms' title='" + obj.companyName2 + "'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w70 alignR'>" + obj.lastTradedPrice + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.netChange) + "'>" + obj.netChange + "</span></li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";		
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.lastTradedPrice + "' style='margin-left:" + obj.bargraphvalue + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphvalue + "%' /></div><span class='flt'>" + obj.lowPrice + "</span><span class='flr'>" + obj.highPrice + "</span><div class='clr' /></li>";
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.lastTradedPrice + "' style='margin-left:" + obj.bargraphFiftyTwoWeek + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphFiftyTwoWeek + "%' /></div><span class='flt'>" + obj.fiftyTwoWeekLowPrice + "</span><span class='flr'>" + obj.fiftyTwoWeekHighPrice + "</span><div class='clr' /></li>";
+		html += "<li class='w70 alignR'>" + parseFloat(obj.volume/1000).toFixed(2) + "</li>";
+	} else if(ajaxHit.data.pid >= 50 && ajaxHit.data.pid <= 54){
+		if (obj.netProfitPercentChange == "PL"){
+			var msg = "PL denotes prior year&#39;s profit turned into loss.";
+		} else if (obj.netProfitPercentChange == "LL"){
+			var msg = "LL indicates loss in both previous and current years.";
+		} else if (obj.netProfitPercentChange == "LP"){
+			var msg = "LP stands for prior year&#39;s loss turned into profit this year.";
+		}
+		html += "<li class='w50 alignL'>" + obj.currentYearRank + "</li>";
+		html += "<li class='w50 alignL'>" + ((obj.previousYearRank == 0) ? 'N.A.' : obj.previousYearRank) + "</li>";
+		html += "<li class='w150 alignL'><a target='_blank' href='/" + obj.seoname.replace(/\'/, "") + "/stocks/companyid-" + obj.companyId + ".cms' title='" + obj.companyName + "'>" + obj.companyName + "</a></li>";
+		html += "<li class='w70 alignR'>" + obj.revenue + "</li>";
+		html += "<li class='w60 alignR'><span class='" + etm.setColor(obj.revPercentChange) + "'>" + obj.revPercentChange + "</span></li>";
+		html += "<li class='w70 alignR'>" + obj.netProfit + "</li>";
+		html += "<li class='w60 alignR'><span class='" + etm.setColor(obj.netProfitPercentChange) + "' title='"+ msg +"'>" + (isNaN(obj.netProfitPercentChange) ? obj.netProfitPercentChange : parseFloat(obj.netProfitPercentChange).toFixed(2)) + "</span></li>";
+		html += "<li class='w70 alignR'>" + obj.mcap + "</li>";
+		html += "<li class='w70 alignR'>" + obj.assets + "</li>";
+	} else if(ajaxHit.data.pid == 83 || ajaxHit.data.pid == 84){
+		if(obj.fandOSymbol && obj.fandoExpiryDate && obj.fandOSymbol != "-"){
+			html += "<li class='w130'><a target='_blank' href='/commoditysummary/symbol-" + obj.fandOSymbol + ",spotsymbol-" + obj.symbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms?expiry=" + obj.fandoExpiryDate + "'>" + obj.commodityName + "</a></li>";
+		} else {
+			html += "<li class='w130'>" + obj.commodityName + "</li>";
+		}
+		html += "<li class='w80'>" + obj.location + "</li>";
+		html += "<li class='w80 alignR'>" + obj.lastTradedPrice + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.netChange) + "'>" + obj.netChange + "</span></li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		html += "<li class='w80 alignR'>" + obj.fandoPrice + "</li>";
+		html += "<li class='w60 alignR'>" + obj.priceQuotationUnit + "</li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.discountPremium) + "'>" + parseFloat(obj.discountPremium).toFixed(2) + "</span></li>";
+	} else if(ajaxHit.data.pid == 81 || ajaxHit.data.pid == 82 || (ajaxHit.data.pid >= 85 && ajaxHit.data.pid <= 102) || ajaxHit.data.pid == 113){
+		html += "<li class='w110'><a target='_blank' href='/commoditysummary/symbol-" + obj.Symbol + ",type-fando,spotsymbol-" + obj.SpotSymbol + ",keyword-" + obj.commodityname2.toLowerCase() + ".cms?expiry=" + obj.expirydate + "'>" + obj.commodityname2 + "</a></li>";
+		html += "<li class='w100 alignR'>" + obj.expirydate2 + "</span>" + "</li>";
+		html += "<li class='w110 alignR'>" + obj.current + "/<span style='font-size:10px'>" + obj.PriceQuotationUnit + "</span>" + "</li>";
+		if(ajaxHit.data.pid != 101){
+			html += "<li class='w50 alignR'><span class='" + etm.setColor(obj.netchange) + "'>" + ((obj.netchange % 1 === 0) ? obj.netchange : parseFloat(obj.netchange).toFixed(2)) + "</span></li>";
+		}
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.percentagechange) + "'>" + parseFloat(obj.percentagechange).toFixed(2) + "</span></li>";
+		html += "<li class='" + (ajaxHit.data.pid == 101 ? "w70" : "w90") + " alignR'>" + (ajaxHit.data.pid == 113 ? obj.value : obj.volume) + "</li>";
+		if(ajaxHit.data.pid == 101){
+			html += "<li class='w70 alignR'>" + obj.volumesurger + "</li>";
+		}
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.current + "' style='margin-left:" + (obj.bargraphvalue || 50) + "%' /></div><div class='barLine'><div class='bar' style='width:" + (obj.bargraphvalue || 50) + "%' /></div><span class='flt'>" + obj.low + "</span><span class='flr'>" + obj.high + "</span><div class='clr' /></li>";
+	} else if(ajaxHit.data.pid == 103 || ajaxHit.data.pid == 104){
+		html += "<li class='w120'><a target='_blank' href='/commoditysummary/symbol-" + obj.symbol + ",type-fando,spotsymbol-" + obj.spotSymbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms'>" + obj.commodityName + "</a></li>";
+		html += "<li class='w80 alignR' style='font-size:13px'>" + obj.displayExpiryDate + "</li>";
+		html += "<li class='w110 alignR'>" + obj.lastTradedPrice + "/<span style='font-size:10px'>" + obj.priceQuotationUnit + "</span>" + "</li>";
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.lastTradedPrice + "' style='margin-left:" + (obj.bargraphvalue || 50) + "%' /></div><div class='barLine'><div class='bar' style='width:" + (obj.bargraphvalue || 50) + "%' /></div><span class='flt'>" + obj.lowPrice + "</span><span class='flr'>" + obj.highPrice + "</span><div class='clr' /></li>";
+		html += "<li class='w80 alignR'>" + (ajaxHit.data.pid == 103 ? obj.highPrice : obj.lowPrice) + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.change) + "'>" + ((obj.change % 1 === 0) ? obj.change : parseFloat(obj.change).toFixed(2)) + "</span></li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		//html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.spotPrice) + "'>" + parseFloat(obj.spotPrice).toFixed(2) + "</span></li>";
+	} else if(ajaxHit.data.pid == 105 || ajaxHit.data.pid == 106){
+		html += "<li class='w130'><a target='_blank' href='/commoditysummary/symbol-" + obj.symbol + ",type-fando,spotsymbol-" + obj.spotSymbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms?expiry=" + obj.expiryDate + "'>" + obj.commodityName + "</a></li>";
+		html += "<li class='w80 alignR' style='font-size:13px'>" + obj.displayExpiryDate + "</li>";
+		html += "<li class='w120 alignR'>" + obj.lastTradedPrice + "/<span style='font-size:10px'>" + obj.priceQuotationUnit + "</span>" + "</li>";
+		html += "<li class='w100 alignR'>" + (ajaxHit.data.pid == 105 ? obj.highPrice : obj.lowPrice) + "</li>";
+		html += "<li class='w100 alignR'>" + obj.calculatedPrice + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.change) + "'>" + ((obj.change % 1 === 0) ? obj.change : parseFloat(obj.change).toFixed(2)) + "</span></li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+	} else if(ajaxHit.data.pid == 107 || ajaxHit.data.pid == 108){
+		html += "<li class='w150'><a target='_blank' href='/commoditysummary/symbol-" + obj.symbol + ",type-fando,spotsymbol-" + obj.spotSymbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms?expiry=" + obj.expiryDate + "'>" + obj.commodityName + "</a></li>";
+		html += "<li class='w80 alignR' style='font-size:13px'>" + obj.displayExpiryDate + "</li>";
+		html += "<li class='w120 alignR'>" + obj.lastTradedPrice + "/<span style='font-size:10px'>" + obj.priceQuotationUnit + "</span>" + "</li>";
+		html += "<li class='w90 alignR'>" + (ajaxHit.data.pid == 107 ? obj.highPrice : obj.lowPrice) + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.change) + "'>" + ((obj.change % 1 === 0) ? obj.change : parseFloat(obj.change).toFixed(2)) + "</span></li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		html += "<li class='w80 alignR'>" + obj.volume + "</li>";
+	} else if(ajaxHit.data.pid == 109){
+		html += "<li class='w140'><a target='_blank' href='/commoditysummary/symbol-" + obj.symbol + ",type-fando,spotsymbol-" + obj.spotSymbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms?expiry=" + obj.expiryDate + "'>" + obj.commodityName + "</a></li>";
+		html += "<li class='w130 alignR'>" + obj.nearMonthLastTradedprice + " <span style='font-size:10px'>(" + obj.expiryDate + ")</span></li>";
+		html += "<li class='w130 alignR'>" + obj.farMonthLastTradedprice + " <span style='font-size:10px'>(" + obj.farMonthExpiryDate + ")</span></li>";
+		html += "<li class='w50 alignR' style='font-size:12px'>" + obj.priceQuotationUnit + "</li>";
+		html += "<li class='w70 alignR'>" + parseFloat(obj.spread).toFixed(2) + "</li>";
+		html += "<li class='w80 alignR'>" + parseFloat(obj.spreadPercentage).toFixed(2) + "</li>";
+		html += "<li class='w80'><div style='background:url(http://marketgraphs.economictimes.indiatimes.com/charting/CommoditiesSparkLines.aspx?exchange=47&width=100&height=40&cmsymbol=" + obj.symbol + ") -22px -10px no-repeat; height:20px; margin:-4px 0 0 20px;'></div></li>";
+	} else if(ajaxHit.data.pid == 110 || ajaxHit.data.pid == 111){
+		html += "<li class='w140'><a target='_blank' href='/commoditysummary/symbol-" + obj.symbol + ",type-fando,spotsymbol-" + obj.spotSymbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms?expiry=" + obj.expiryDate + "'>" + obj.commodityName + "</a></li>";
+		html += "<li class='w80 alignR' style='font-size:13px'>" + obj.displayExpiryDate + "</li>";
+		html += "<li class='w90 alignR'>" + obj.futuresPrice + "</li>";
+		html += "<li class='w70 alignR'>" + obj.spotPrice + "</li>";
+		html += "<li class='w70 alignR'>" + obj.priceQuotationUnit + "</li>";
+		html += "<li class='w60 alignR'><span class='" + etm.setColor(obj.premiumDiscount) + "'>" + ((obj.premiumDiscount % 1 === 0) ? obj.premiumDiscount : parseFloat(obj.premiumDiscount).toFixed(2)) + "</span></li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.change) + "'>" + ((obj.change % 1 === 0) ? obj.change : parseFloat(obj.change).toFixed(2)) + "</span></li>";
+		html += "<li class='w80 alignR'>" + obj.volume + "</li>";
+	} else if(ajaxHit.data.pid == 112){
+		html += "<li class='w130'><a target='_blank' href='/commoditysummary/symbol-" + obj.symbol + ",type-fando,spotsymbol-" + obj.spotSymbol + ",keyword-" + obj.commodityName.toLowerCase() + ".cms?expiry=" + obj.expiryDate + "'>" + obj.commodityName + "</a></li>";
+		html += "<li class='w80 alignR' style='font-size:13px'>" + obj.displayExpiryDate + "</li>";
+		html += "<li class='w80 alignR'>" + obj.bestBuyPrice + "</li>";
+		html += "<li class='w90 alignR'>" + obj.bestSellPrice + "</li>";
+		html += "<li class='w60 alignR'><span style='font-size:11px'>" + obj.priceQuotationUnit + "</span></li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.spread) + "'>" + ((obj.spread % 1 === 0) ? obj.spread : parseFloat(obj.spread).toFixed(2)) + "</span></li>";
+		html += "<li class='w80 alignR'>" + obj.openInterest + "</li>";
+		html += "<li class='w70 alignR'>" + ((obj.volume % 1 === 0) ? obj.volume : parseFloat(obj.volume).toFixed(2)) + "</li>";
+	} else if(ajaxHit.data.pid >= 121 && ajaxHit.data.pid <= 130){
+		var periodVal = obj.r1Week;
+		
+		switch (ajaxHit.data.period){
+			case "r1month" :
+				periodVal = obj.r1Month;
+				break;
+			case "r3month" :
+				periodVal = obj.r3Month;
+				break;
+			case "r6month" :
+				periodVal = obj.r6Month;
+				break;
+			case "r1year" :
+				periodVal = obj.r1Year;
+				break;
+			case "r3year" :
+				periodVal = obj.r3Year;
+				break;
+			case "rytd" :
+				periodVal = obj.rytd;
+				break;
+			default : 
+				periodVal = obj.r1Week;
+		}
+		if(ajaxHit.data.pid != 127 && ajaxHit.data.pid != 131){
+			html += "<li class='w200'><a href='/" + obj.seoName + "/mffactsheet/schemeid-" + obj.schemeId + ".cms' title='" + obj.nameOfScheme + "' target='_blank'>" + obj.shortName + "</a></li>";
+			html += "<li class='w70 alignR' title='As on " + obj.latestNavDate + "'>" + obj.latestNav + "</li>";
+		}
+		
+		if(ajaxHit.data.pid <= 124){
+			if(ajaxHit.data.pid == 124){
+				html += "<li class='w60 alignR'>" + (obj.sharpeRatio ? parseFloat(obj.sharpeRatio).toFixed(2) : "-") + "</li>";
+			}
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(periodVal) + " '>" + (periodVal ? parseFloat(periodVal).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><div class='spriteMkt star_" + obj.VRRatings + "'></div></li>";
+			html += "<li class='w70 alignR'>" + (obj.aum ? parseFloat(obj.aum).toFixed(2) : "-") + "</li>";
+			if(obj.equityStyleBoxNum){
+				html += "<li class='w50 alignR'><div title='" + obj.equityStyleBoxText + "' class='spriteMkt styleBox_" + obj.equityStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w50 alignC'>-</li>";
+			}
+			if(obj.debtStyleBoxNum){
+				html += "<li class='w50 alignR'><div title='" + obj.debtStyleBoxText + "' class='spriteMkt styleBox_" + obj.debtStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w50 alignC'>-</li>";
+			}
+			if(ajaxHit.data.pid != 124){
+				html += "<li class='w60 alignR'>" + (obj.expenseRatio ? parseFloat(obj.expenseRatio).toFixed(2) : "-") + "</li>";
+			}
+		} else if(ajaxHit.data.pid == 125){
+			html += "<li class='w60 alignR'>" + (obj.aum ? parseFloat(obj.aum).toFixed(2) : "-") + "</li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.absoluteChange) + "'>" + (obj.absoluteChange ? parseFloat(obj.absoluteChange).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.percentChange) + "'>" + (obj.percentChange ? parseFloat(obj.percentChange).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w70 alignR'><span class='" + etm.setColor(periodVal) + " '>" + (periodVal ? parseFloat(periodVal).toFixed(2) : "-") + "</span></li>";
+			if(obj.equityStyleBoxNum){
+				html += "<li class='w60 alignR'><div title='" + obj.equityStyleBoxText + "' class='spriteMkt styleBox_" + obj.equityStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w60 alignC'>-</li>";
+			}
+			if(obj.debtStyleBoxNum){
+				html += "<li class='w50 alignR'><div title='" + obj.debtStyleBoxText + "' class='spriteMkt styleBox_" + obj.debtStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w50 alignC'>-</li>";
+			}
+		} else if(ajaxHit.data.pid == 126){
+			html += "<li class='w60 alignR'>" + (typeof obj.expenseRatio != 'undefined' ? parseFloat(obj.expenseRatio).toFixed(4) : "-") + "</li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(periodVal) + " '>" + (typeof periodVal != 'undefined' ? parseFloat(periodVal).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><div class='spriteMkt star_" + obj.VRRatings + "'></div></li>";
+			html += "<li class='w60 alignR'>" + (obj.aum ? parseFloat(obj.aum).toFixed(2) : "-") + "</li>";
+			if(obj.equityStyleBoxNum){
+				html += "<li class='w60 alignR'><div title='" + obj.equityStyleBoxText + "' class='spriteMkt styleBox_" + obj.equityStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w60 alignC'>-</li>";
+			}
+			if(obj.debtStyleBoxNum){
+				html += "<li class='w50 alignR'><div title='" + obj.debtStyleBoxText + "' class='spriteMkt styleBox_" + obj.debtStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w50 alignC'>-</li>";
+			}
+		} else if(ajaxHit.data.pid == 127){
+			html += "<li class='w190'><a href='/" + obj.primaryObjective.toLowerCase() + "-" + obj.secondaryObjective.toLowerCase().replace(/\s\&\s|\s/gi, "-") + "/mffundsbycategory.cms?primaryobj=" + obj.primaryObjective.toLowerCase() + "&secondaryobj=" + escape(obj.secondaryObjective.toLowerCase()) + "&period=" + ajaxHit.data.period + "' target='_blank'>" + obj.primaryObjective + ": " + obj.secondaryObjective + "</a></li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Week) + "'>" + (typeof obj.r1Week != 'undefined' ? parseFloat(obj.r1Week).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Month) + "'>" + (typeof obj.r1Month != 'undefined' ? parseFloat(obj.r1Month).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r6Month) + "'>" + (typeof obj.r6Month != 'undefined' ? parseFloat(obj.r6Month).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Year) + "'>" + (typeof obj.r1Year != 'undefined' ? parseFloat(obj.r1Year).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r3Year) + "'>" + (typeof obj.r3Year != 'undefined' ? parseFloat(obj.r3Year).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.rytd) + "'>" + (typeof obj.rytd != 'undefined' ? parseFloat(obj.rytd).toFixed(2) : "-") + "</span></li>";
+		} else if(ajaxHit.data.pid == 128){
+			html += "<li class='w100 alignR'>" + obj.recordDate.replace(" 00:00:00.0", "") + "</li>";
+			html += "<li class='w100 alignR'>" + parseFloat(obj.dividend).toFixed(4) + "</li>";
+			html += "<li class='w100 alignR'><span title='" + obj.value + "'>" + parseFloat(obj.value).toFixed(2) + "</span></li>";
+			html += "<li class='w100 alignR'><span class='" + etm.setColor(periodVal) + " '>" + (typeof periodVal != 'undefined' ? parseFloat(periodVal).toFixed(2) : "-") + "</span></li>";
+		}
+	} else if(ajaxHit.data.pid == 131){
+		html = "<div class='head'>" + obj.primaryObjective + ": " + obj.secondaryObjective + "</div>";
+		$.each(obj.topFunds, function(i, scheme){
+			var periodVal = scheme.r1Week;
+		
+			switch (ajaxHit.data.period){
+				case "r1month" :
+					periodVal = scheme.r1Month;
+					break;
+				case "r3month" :
+					periodVal = scheme.r3Month;
+					break;
+				case "r6month" :
+					periodVal = scheme.r6Month;
+					break;
+				case "r1year" :
+					periodVal = scheme.r1Year;
+					break;
+				case "r3year" :
+					periodVal = scheme.r3Year;
+					break;
+				case "rytd" :
+					periodVal = scheme.rytd;
+					break;
+				default : 
+					periodVal = scheme.r1Week;
+			}
+			
+			html += "<div class='dataList'><ul>";
+			html += "<li class='w200'><a href='/" + scheme.seoName + "/mffactsheet/schemeid-" + scheme.schemeId + ".cms' title='" + scheme.nameOfScheme + "' target='_blank'>" + scheme.shortName + "</a></li>";
+			html += "<li class='w70 alignR' title='As on " + scheme.latestNavDate + "'>" + scheme.latestNav + "</li>";
+			html += "<li class='w80 alignR'><span class='" + etm.setColor(periodVal) + " '>" + (periodVal ? parseFloat(periodVal).toFixed(2) : "-") + "</span></li>";
+			html += "<li class='w60 alignR'>" + (typeof scheme.expenseRatio != 'undefined' ? parseFloat(scheme.expenseRatio).toFixed(2) : "-") + "</li>";
+			html += "<li class='w60 alignR'>" + (scheme.aum ? parseFloat(scheme.aum).toFixed(2) : "-") + "</li>";
+			html += "<li class='w80 alignR'><div class='spriteMkt star_" + scheme.VRRatings + "'></div></li>";
+			if(scheme.equityStyleBoxNum){
+				html += "<li class='w50 alignR'><div title='" + scheme.equityStyleBoxText + "' class='spriteMkt styleBox_" + scheme.equityStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w50 alignC'>-</li>";
+			}
+			if(scheme.debtStyleBoxNum){
+				html += "<li class='w50 alignR'><div title='" + scheme.debtStyleBoxText + "' class='spriteMkt styleBox_" + scheme.debtStyleBoxNum + "'></div></li>";
+			} else {
+				html += "<li class='w50 alignC'>-</li>";
+			}
+			html += "</ul><div class='clr'></div></div>";
+		});
+	} else if(ajaxHit.data.pid >= 141 && ajaxHit.data.pid <= 145){
+		html += "<li class='w250'><a href='/" + obj.seoname + "/mffactsheet/schemeid-" + obj.schemeid + ".cms' target='_blank' title='" + obj.CompanyName2 + "'>" + obj.schemename + "</a></li>";
+		html += "<li class='w80 alignR' title='Last Updated: " + obj.DateTime + "'>" + obj.LastTradedPrice + "</li>";
+		html += "<li class='w80 alignR'>" + obj.NetChange + "</li>";
+		html += "<li class='w80 alignR'>" + obj.PercentChange + "</li>";
+		html += "<li class='w100'><div style='background:url(http://marketgraphs.economictimes.indiatimes.com/charting/CompanySparkLine1.aspx?exchange=47&width=140&height=40&companyid=" + obj.companyid + ") -24px -10px no-repeat; height:20px; margin-top:-4px;' title='High: " + obj.HighPrice + "  |  Low: " + obj.LowPrice + "'></div></li>";
+		html += "<li class='w80 alignR'>" + obj.Volume + "</li>";
+	} else if(ajaxHit.data.pid >= 146 && ajaxHit.data.pid <= 150){
+		html += "<li class='w200'><a href='/" + obj.seoName + "/mffactsheet/schemeid-" + obj.schemeId + ".cms' target='_blank' title='" + obj.nameOfScheme + "'>" + obj.shortName + "</a></li>";
+		html += "<li class='w80 alignR'>" + parseFloat(obj.latestNav).toFixed(2) + "</li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Day) + "'>" + (obj.r1Day ? parseFloat(obj.r1Day).toFixed(2) : "-") + "</span></li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Week) + "'>" + (obj.r1Week ? parseFloat(obj.r1Week).toFixed(2) : "-") + "</span></li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Month) + "'>" + (obj.r1Month ? parseFloat(obj.r1Month).toFixed(2) : "-") + "</span></li>";
+		html += "<li class='w80 alignR'><span class='" + etm.setColor(obj.r1Year) + "'>" + (obj.r1Year ? parseFloat(obj.r1Year).toFixed(2) : "-") + "</span></li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.rytd) + "'>" + (obj.rytd ? parseFloat(obj.rytd).toFixed(2) : "-") + "</span></li>";
+	} else if(ajaxHit.data.pid >= 180 && ajaxHit.data.pid <= 182){
+		html += "<li class='w350'><a href='/ipos.cms?isopen=" + ajaxHit.data.isopen + "&companyid=" + obj.companyid + "' target='_blank'>" + obj.companyname + "</a></li>";
+		html += "<li class='w120 alignR'>" + obj.price + "</li>";
+		html += "<li class='w120 alignR'>" + obj.opendatestr + "</li>";
+		html += "<li class='w100 alignR'>" + obj.closedatestr + "</li>";
+	} else if(ajaxHit.data.pid >= 183 && ajaxHit.data.pid <= 187){
+		html += "<li class='w150'><a href='/" + obj.seoname + "/ipos/companyid-" + obj.companyid + ".cms' target='_blank'>" + obj.companyname + "</a></li>";
+		html += "<li class='w80 alignR'>" + obj.dateoflistingstr + "</li>";
+		html += "<li class='w70 alignR'>" + obj.ipoPrice + "</li>";
+		html += "<li class='w70 alignR'>" + obj.currentprice + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.persentchange) + "'>" + obj.persentchange + "</span></li>";
+		html += "<li class='w70 alignR'>" + obj.holdingperiod + "</li>";
+		html += "<li class='w70 alignR'><span class='" + etm.setColor(obj.annualisedreturn) + "'>" + obj.annualisedreturn + "</span></li>";
+		html += "<li class='w70 alignR'>" + obj.stockstartprice + "</li>";
+	} else if(ajaxHit.data.pid == 500 || ajaxHit.data.pid == 501){
+		html += "<li class='w180'><a href='/" + obj.seoname + "/stocks/companyid-" + obj.companyid + ".cms' title='" + obj.companyName2 + "' target='_blank'>" + obj.companyShortName + "</a></li>";
+		html += "<li class='w80 alignR'><span class='ltp'>" + obj.current + "</span></li>";
+		html += "<li class='w80 alignR'>" + parseFloat(obj.previousclose).toFixed(2) + "</li>";
+		html += "<li class='w100 alignR'><span class='pchange" + etm.setColor(obj.absolutechange) + "'>" + parseFloat(obj.absolutechange).toFixed(2) + "</span></li>";
+		html += "<li class='w80 alignR'><span class='change" + etm.setColor(obj.percentChange) + "'>" + obj.percentChange + "</span></li>";
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.current + "' style='margin-left:" + obj.bargraphvalue + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphvalue + "%' /></div><span class='flt'>" + obj.low + "</span><span class='flr'>" + obj.high + "</span><div class='clr' /></li>";
+		
+		if(ajaxHit.data.pid == 501){
+			html += "<li><span class='spriteMkt deleteWl' data-compid='" + obj.companyid + "' title='Delete from this WatchList'></span></li>";
+		}
+	} else if(ajaxHit.data.pid == 503){
+		var clr = "#000";
+		if(obj.recommendation.toUpperCase() == "BUY" || obj.recommendation.toUpperCase() == "BULLISH"){
+			clr = "#008000"
+		} else if(obj.recommendation.toUpperCase() == "SELL" || obj.recommendation.toUpperCase() == "BEARISH"){
+			clr = "#bf1100";
+		}
+		html += "<li class='w100'>" + obj.recdate.split(".")[0] + "</li>";
+		html += "<li class='w140'><a target='_blank' href='/stocks/companyid-" + obj.companyid + ".cms'>" + obj.companyname + "</a></li>";
+		html += "<li class='w70 alignC'><b style='color:" + clr + "'>" + obj.recommendation.toUpperCase() + "</b></li>";
+		html += "<li class='w400'><a target='_blank' href='/" + obj.secnameseo + "/articleshow/" + obj.msid + ".cms'>" + obj.msname + "</a><p style='font-size:12px; color:#666'>(Recommended at price: " + obj.marketprice + ")</p></li>";
+	} else {
+		// for pid : 0, 1, default
+		writeCompany();
+		html += "<li class='w80 alignC'><span class='ltp'>" + obj.current + "</span></li>";
+		if(ajaxHit.data.sort == "intraday"){
+			html += "<li class='w80 alignR'><span class='change" + etm.setColor(obj.absChange) + "'>" + parseFloat(obj.absChange).toFixed(2) + "</span></li>";
+			html += "<li class='w100 alignR'><span class='pchange" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+			html += "<li class='w80 alignR'><span class='vol'>" + obj.volumeInThousand + "</span></li>";
+		} else {
+			html += "<li class='w100 alignR' title='" + obj.comparedPriceDate + "'>" + obj.comparedPrice + "</li>";
+			html += "<li class='w80 alignR'><span class='change" + etm.setColor(obj.absChange) + "'>" + parseFloat(obj.absChange).toFixed(2) + "</span></li>";
+			html += "<li class='w90 alignR'><span class='pchange" + etm.setColor(obj.percentChange) + "'>" + parseFloat(obj.percentChange).toFixed(2) + "</span></li>";
+		}
+		html += "<li class='w120 pdl20 graphBar'><div class='arrowHolder'><b class='arrow' title='" + obj.current + "' style='margin-left:" + obj.bargraphvalue + "%' /></div><div class='barLine'><div class='bar' style='width:" + obj.bargraphvalue + "%' /></div><span class='flt'>" + obj.low + "</span><span class='flr'>" + obj.high + "</span><div class='clr' /></li>";
+	}
+	
+	if(ajaxHit.data.pid != 131){
+		html += "</ul><div class='clr'></div></div>";
+	}
+
+	$(html).appendTo("#dataDisplay .dataContainer");
+	
+	if(ajaxHit.data.pid <= 16){
+		var compId = (ajaxHit.data.pid <= 12) ? obj.companyid : obj.companyId;
+		var compLtp = (ajaxHit.data.pid <= 12) ? obj.current : obj.priceVolumeInfos.today.closePrice;
+		
+		if(etm.ltpHistory["c_" +compId]){
+			if(compLtp > etm.ltpHistory["c_" + compId]){
+				$("#dataDisplay .dataContainer .ltp").last().addClass("downBg");
+			} else if(compLtp < etm.ltpHistory["c_" + compId]){
+				$("#dataDisplay .dataContainer .ltp").last().addClass("upBg");
+			}
+		}
+		etm.ltpHistory["c_" + compId] = compLtp;
+	}
+}
+
+
