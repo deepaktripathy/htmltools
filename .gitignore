@@ -48,3 +48,6 @@ Temporary Items
 .settings/
 classes/
 LOCAL_FILES/
+.classpath
+.project
+target/
